@@ -73,13 +73,20 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Project Domain Category <span class="text-danger">*</span></label>
-                            <select name="category" class="form-select" required>
-                                <option value="Web Application">Web Application</option>
-                                <option value="SaaS Platform">SaaS Platform</option>
-                                <option value="API & Microservices">API & Microservices</option>
-                                <option value="DevOps & Infrastructure">DevOps & Infrastructure</option>
-                                <option value="Mobile API">Mobile API</option>
-                            </select>
+                            <input list="category_list" name="category" class="form-control" value="{{ old('category', 'Web Application') }}" placeholder="Select or type custom category..." required>
+                            <datalist id="category_list">
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat }}">
+                                @endforeach
+                            </datalist>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <span class="text-muted" style="font-size: 11px;">Pick from list or type a brand new category.</span>
+                                @hasanyrole('Super Admin|Administrator')
+                                    <a href="{{ route('admin.settings.index') }}" target="_blank" class="small text-decoration-none" style="font-size: 11px;">
+                                        <i class="fas fa-cog me-1"></i> Manage Defaults
+                                    </a>
+                                @endhasanyrole
+                            </div>
                         </div>
                     </div>
 

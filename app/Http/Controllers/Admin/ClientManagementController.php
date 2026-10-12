@@ -72,17 +72,17 @@ class ClientManagementController extends Controller
         $client = ClientProfile::create([
             'user_id' => $user->id,
             'client_number' => $clientNumber,
-            'company_name' => $validated['company_name'],
-            'phone' => $validated['phone'],
-            'billing_address' => $validated['billing_address'],
-            'city' => $validated['city'],
-            'state' => $validated['state'],
-            'postal_code' => $validated['postal_code'],
-            'country' => $validated['country'],
-            'tax_number' => $validated['tax_number'],
-            'client_category' => $validated['client_category'],
+            'company_name' => $validated['company_name'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+            'billing_address' => $validated['billing_address'] ?? null,
+            'city' => $validated['city'] ?? null,
+            'state' => $validated['state'] ?? null,
+            'postal_code' => $validated['postal_code'] ?? null,
+            'country' => $validated['country'] ?? 'India',
+            'tax_number' => $validated['tax_number'] ?? null,
+            'client_category' => $validated['client_category'] ?? 'Standard',
             'account_status' => 'active',
-            'notes' => $validated['notes'],
+            'notes' => $validated['notes'] ?? null,
         ]);
 
         AuditService::log('client_created', $client, "Created client {$client->client_number} ({$user->name})");

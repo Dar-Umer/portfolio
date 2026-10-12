@@ -41,7 +41,13 @@ class ProjectManagementController extends Controller
     public function create(): View
     {
         $clients = ClientProfile::with('user')->where('account_status', 'active')->get();
-        return view('admin.projects.create', compact('clients'));
+        $categoriesSetting = \App\Models\Setting::get('project_categories');
+        if ($categoriesSetting) {
+            $categories = array_filter(array_map('trim', explode(',', $categoriesSetting)));
+        } else {
+            $categories = ['Web Application', 'SaaS Platform', 'API & Microservices', 'DevOps & Infrastructure', 'Mobile API'];
+        }
+        return view('admin.projects.create', compact('clients', 'categories'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -106,6 +112,7 @@ class ProjectManagementController extends Controller
             'timelineEvents.user',
             'members.user',
             'repositories.syncLogs',
+            'requirements.user',
             'tickets.status',
             'invoices',
         ]);
@@ -120,6 +127,9 @@ class ProjectManagementController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'acceptance_criteria' => ['nullable', 'string'],
+            'demo_url' => ['nullable', 'url'],
+            'deliverable_type' => ['nullable', 'string'],
             'due_date' => ['nullable', 'date'],
             'is_client_visible' => ['nullable', 'boolean'],
         ]);
@@ -128,6 +138,9 @@ class ProjectManagementController extends Controller
             'project_id' => $project->id,
             'title' => $validated['title'],
             'description' => $validated['description'],
+            'acceptance_criteria' => $validated['acceptance_criteria'],
+            'demo_url' => $validated['demo_url'],
+            'deliverable_type' => $validated['deliverable_type'] ?? 'Feature',
             'due_date' => $validated['due_date'],
             'status' => 'pending',
             'progress' => 0,
@@ -139,12 +152,103 @@ class ProjectManagementController extends Controller
             'project_id' => $project->id,
             'user_id' => auth()->id(),
             'event_type' => 'milestone_added',
-            'title' => 'Milestone Created',
-            'description' => "Added milestone: {$milestone->title}",
+            'title' => "Milestone Created: {$milestone->title}",
+            'description' => "Added deliverable scope ({$milestone->deliverable_type}).",
             'is_client_visible' => $milestone->is_client_visible,
         ]);
 
-        return back()->with('success', 'Milestone added successfully.');
+        return back()->with('success', 'Deliverable milestone added successfully.');
+    }
+
+    public function convertRequirementToMilestone(Request $request, Project $project, \App\Models\ProjectRequirement $requirement): RedirectResponse
+    {
+        $request->validate([
+            'due_date' => ['nullable', 'date'],
+            'staff_feedback' => ['nullable', 'string'],
+        ]);
+
+        $milestone = ProjectMilestone::create([
+            'project_id' => $project->id,
+            'title' => $requirement->title,
+            'description' => $requirement->details,
+            'deliverable_type' => 'Feature',
+            'due_date' => $request->due_date,
+            'status' => 'pending',
+            'progress' => 0,
+            'is_client_visible' => true,
+            'requested_by_user_id' => $requirement->user_id,
+            'sort_order' => $project->milestones()->count() + 1,
+        ]);
+
+        $requirement->update([
+            'status' => 'Planned',
+            'converted_milestone_id' => $milestone->id,
+            'staff_feedback' => $request->staff_feedback ?: 'Approved and converted into sprint deliverable.',
+        ]);
+
+        $project->recalculateProgress();
+
+        ProjectTimelineEvent::create([
+            'project_id' => $project->id,
+            'user_id' => auth()->id(),
+            'event_type' => 'milestone_added',
+            'title' => "Requirement Scheduled: {$milestone->title}",
+            'description' => "Client requirement accepted into project deliverables.",
+            'is_client_visible' => true,
+        ]);
+
+        return back()->with('success', "Requirement '{$requirement->title}' converted into project deliverable milestone!");
+    }
+
+    public function storeRequirement(Request $request, Project $project): RedirectResponse
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'details' => ['required', 'string'],
+            'priority' => ['required', 'in:Low,Medium,High,Critical'],
+            'status' => ['required', 'in:Submitted,Under Review,Planned,Completed,Rejected'],
+            'staff_feedback' => ['nullable', 'string'],
+        ]);
+
+        $project->requirements()->create([
+            'user_id' => $project->client->user_id,
+            'title' => $validated['title'],
+            'details' => $validated['details'],
+            'priority' => $validated['priority'],
+            'status' => $validated['status'],
+            'staff_feedback' => $validated['staff_feedback'],
+        ]);
+
+        AuditService::log('project_requirement_created', $project, "Admin added client requirement: {$validated['title']}");
+
+        return back()->with('success', "Requirement '{$validated['title']}' added successfully.");
+    }
+
+    public function updateRequirement(Request $request, Project $project, \App\Models\ProjectRequirement $requirement): RedirectResponse
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'details' => ['required', 'string'],
+            'priority' => ['required', 'in:Low,Medium,High,Critical'],
+            'status' => ['required', 'in:Submitted,Under Review,Planned,Completed,Rejected'],
+            'staff_feedback' => ['nullable', 'string'],
+        ]);
+
+        $requirement->update($validated);
+
+        AuditService::log('project_requirement_updated', $project, "Updated project requirement #{$requirement->id} ({$requirement->title})");
+
+        return back()->with('success', "Requirement '{$requirement->title}' updated successfully.");
+    }
+
+    public function destroyRequirement(Project $project, \App\Models\ProjectRequirement $requirement): RedirectResponse
+    {
+        $title = $requirement->title;
+        $requirement->delete();
+
+        AuditService::log('project_requirement_deleted', $project, "Deleted project requirement {$title}");
+
+        return back()->with('success', "Requirement '{$title}' removed.");
     }
 
     public function updateStatus(Request $request, Project $project): RedirectResponse

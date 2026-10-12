@@ -49,6 +49,11 @@ class Project extends Model
         return $this->hasMany(ProjectMilestone::class)->orderBy('sort_order');
     }
 
+    public function requirements(): HasMany
+    {
+        return $this->hasMany(ProjectRequirement::class)->latest();
+    }
+
     public function timelineEvents(): HasMany
     {
         return $this->hasMany(ProjectTimelineEvent::class)->orderBy('created_at', 'desc');

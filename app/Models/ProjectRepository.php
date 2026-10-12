@@ -41,6 +41,6 @@ class ProjectRepository extends Model
 
     public function syncLogs(): HasMany
     {
-        return $this->hasMany(GithubSyncLog::class);
+        return $this->hasMany(GithubSyncLog::class)->latest();
     }
 }

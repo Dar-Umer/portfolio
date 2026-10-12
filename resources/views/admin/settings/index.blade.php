@@ -65,6 +65,19 @@
                         </div>
                     </div>
 
+                    <!-- Project Management Configuration -->
+                    <div class="d-flex align-items-center gap-2 mb-3 text-uppercase text-muted fw-bold" style="font-size: 11px; letter-spacing: 0.05em;">
+                        <i class="fas fa-layer-group text-primary"></i> Project Domain Categories
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-12">
+                            <label class="form-label small fw-semibold">Custom Project Categories (Comma-separated)</label>
+                            <input type="text" name="project_categories" class="form-control" value="{{ \App\Models\Setting::get('project_categories', 'Web Application, SaaS Platform, API & Microservices, DevOps & Infrastructure, Mobile API') }}" placeholder="Web Application, SaaS Platform, API & Microservices...">
+                            <span class="text-muted mt-1 d-block" style="font-size: 11px;">Define the categories available across project creation, directory filters, and scope classifications.</span>
+                        </div>
+                    </div>
+
                     <!-- Ticket SLA Policy -->
                     <div class="d-flex align-items-center gap-2 mb-3 text-uppercase text-muted fw-bold" style="font-size: 11px; letter-spacing: 0.05em;">
                         <i class="fas fa-clock text-warning"></i> Customer Support SLA Policy

@@ -40,7 +40,7 @@ class GitHubIntegrationService
             $repoData = $repoResponse->json();
             $defaultBranch = $repoData['default_branch'] ?? $repository->default_branch;
 
-            // 2. Fetch Latest Releases
+            // 2. Fetch Latest Releases and Tags
             $releasesResponse = Http::withHeaders($headers)->timeout(10)->get("{$baseUrl}/releases/latest");
             $latestTag = null;
             $publishedAt = null;
@@ -49,6 +49,27 @@ class GitHubIntegrationService
                 $releaseData = $releasesResponse->json();
                 $latestTag = $releaseData['tag_name'] ?? null;
                 $publishedAt = isset($releaseData['published_at']) ? date('Y-m-d H:i:s', strtotime($releaseData['published_at'])) : null;
+            } else {
+                // Check if any tag exists
+                $tagsResponse = Http::withHeaders($headers)->timeout(10)->get("{$baseUrl}/tags?per_page=1");
+                if ($tagsResponse->successful() && !empty($tagsResponse->json())) {
+                    $firstTag = $tagsResponse->json()[0] ?? null;
+                    $latestTag = $firstTag['name'] ?? null;
+                }
+            }
+
+            // 3. Fetch Recent Commits
+            $commitsResponse = Http::withHeaders($headers)->timeout(10)->get("{$baseUrl}/commits?per_page=5");
+            $recentCommits = [];
+            if ($commitsResponse->successful()) {
+                foreach ($commitsResponse->json() as $c) {
+                    $recentCommits[] = [
+                        'sha' => substr($c['sha'] ?? '', 0, 7),
+                        'message' => $c['commit']['message'] ?? '',
+                        'author' => $c['commit']['author']['name'] ?? '',
+                        'date' => isset($c['commit']['author']['date']) ? date('d M Y, H:i', strtotime($c['commit']['author']['date'])) : '',
+                    ];
+                }
             }
 
             // Update repository record
@@ -82,6 +103,7 @@ class GitHubIntegrationService
                     'forks' => $repoData['forks_count'] ?? 0,
                     'open_issues' => $repoData['open_issues_count'] ?? 0,
                     'latest_tag' => $latestTag,
+                    'commits' => $recentCommits,
                 ],
             ]);
 
@@ -91,6 +113,7 @@ class GitHubIntegrationService
                 'status' => 'success',
                 'latest_tag' => $latestTag,
                 'default_branch' => $defaultBranch,
+                'commits' => $recentCommits,
             ];
         } catch (Exception $e) {
             $repository->update([

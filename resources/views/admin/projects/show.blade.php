@@ -81,8 +81,13 @@
                 </div>
                 <div class="col-sm-6 col-md-3">
                     <div class="text-muted" style="font-size: 11px; text-transform: uppercase; font-weight: 700;">Technologies</div>
-                    <div class="small text-muted mt-1 text-truncate" title="{{ $project->technologies }}">
-                        {{ $project->technologies ?: 'Not Specified' }}
+                    @php
+                        $techString = is_array($project->technologies) 
+                            ? implode(', ', $project->technologies) 
+                            : ($project->technologies ?? '');
+                    @endphp
+                    <div class="small text-muted mt-1 text-truncate" title="{{ $techString }}">
+                        {{ $techString ?: 'Not Specified' }}
                     </div>
                 </div>
             </div>
@@ -141,6 +146,145 @@
                         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMilestoneModal">
                             <i class="fas fa-plus me-1"></i> Add First Milestone
                         </button>
+                    </div>
+                @endforelse
+            </div>
+        </div>
+
+        <!-- Client Submitted Requirements & Deliverable Requests -->
+        <div class="card border-0 shadow-sm bg-white mb-4">
+            <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-lightbulb text-warning"></i>
+                    <h6 class="fw-bold mb-0 text-dark">Client Requirements & Feature Requests ({{ $project->requirements->count() }})</h6>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#adminAddReqModal">
+                    <i class="fas fa-plus me-1"></i> Add Requirement
+                </button>
+            </div>
+            <div class="card-body p-4">
+                @forelse($project->requirements as $req)
+                    <div class="p-3 bg-light rounded-3 border mb-3">
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold text-dark small">{{ $req->title }}</span>
+                                    <span class="badge badge-soft-{{ $req->priority === 'Critical' ? 'danger' : ($req->priority === 'High' ? 'warning' : 'primary') }}">
+                                        {{ $req->priority }} Priority
+                                    </span>
+                                </div>
+                                <div class="text-muted small mt-1" style="font-size: 11px;">
+                                    Submitted by {{ $req->user->name }} &bull; {{ $req->created_at->format('d M Y, H:i') }}
+                                </div>
+                            </div>
+                            <div>
+                                <span class="badge {{ $req->status === 'Planned' ? 'badge-soft-success' : 'badge-soft-dark' }}">
+                                    {{ $req->status }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="small text-secondary mb-3" style="line-height: 1.5;">
+                            {{ $req->details }}
+                        </div>
+
+                        @if($req->staff_feedback)
+                            <div class="mb-2 p-2 rounded bg-white border text-primary small" style="font-size: 11.5px;">
+                                <strong><i class="fas fa-comment-dots me-1"></i> Staff Response:</strong> {{ $req->staff_feedback }}
+                            </div>
+                        @endif
+
+                        <div class="pt-2 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-1">
+                                <button type="button" class="btn btn-sm btn-light border py-1 px-2" style="font-size: 11.5px;" data-bs-toggle="modal" data-bs-target="#editReqModal{{ $req->id }}">
+                                    <i class="fas fa-pen text-primary me-1"></i> Edit
+                                </button>
+                                <form method="POST" action="{{ route('admin.projects.requirements.destroy', [$project, $req]) }}" class="d-inline" onsubmit="return confirm('Delete this requirement request?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-light border text-danger py-1 px-2" style="font-size: 11.5px;">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+
+                            @if($req->status === 'Submitted')
+                                <form method="POST" action="{{ route('admin.projects.requirements.convert', [$project, $req]) }}" class="d-inline-flex align-items-center gap-2">
+                                    @csrf
+                                    <input type="date" name="due_date" class="form-control form-control-sm" style="width: 135px;" title="Set target completion date">
+                                    <button type="submit" class="btn btn-sm btn-primary py-1 px-2" style="font-size: 11.5px;">
+                                        <i class="fas fa-check-double me-1"></i> Accept & Convert
+                                    </button>
+                                </form>
+                            @else
+                                <span class="small text-success font-monospace" style="font-size: 11px;">
+                                    <i class="fas fa-link me-1"></i> Converted into sprint deliverable
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- Modal: Edit Requirement -->
+                    <div class="modal fade" id="editReqModal{{ $req->id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow-lg">
+                                <form method="POST" action="{{ route('admin.projects.requirements.update', [$project, $req]) }}">
+                                    @csrf
+                                    @method('PUT')
+                                    <div class="modal-header border-bottom bg-light">
+                                        <h5 class="modal-title fw-bold text-dark fs-6">
+                                            <i class="fas fa-pen text-primary me-1"></i> Edit Client Requirement #{{ $req->id }}
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body p-4 small">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Requirement Title <span class="text-danger">*</span></label>
+                                            <input type="text" name="title" class="form-control" value="{{ $req->title }}" required>
+                                        </div>
+
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-6">
+                                                <label class="form-label fw-semibold">Priority</label>
+                                                <select name="priority" class="form-select">
+                                                    @foreach(['Low', 'Medium', 'High', 'Critical'] as $pr)
+                                                        <option value="{{ $pr }}" {{ $req->priority === $pr ? 'selected' : '' }}>{{ $pr }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label fw-semibold">Lifecycle Status</label>
+                                                <select name="status" class="form-select">
+                                                    @foreach(['Submitted', 'Under Review', 'Planned', 'Completed', 'Rejected'] as $st)
+                                                        <option value="{{ $st }}" {{ $req->status === $st ? 'selected' : '' }}>{{ $st }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Specification Details <span class="text-danger">*</span></label>
+                                            <textarea name="details" class="form-control" rows="3" required>{{ $req->details }}</textarea>
+                                        </div>
+
+                                        <div class="mb-2">
+                                            <label class="form-label fw-semibold">Staff Feedback Note (Visible to Client)</label>
+                                            <textarea name="staff_feedback" class="form-control" rows="2" placeholder="e.g. Sprinted for next week release; API token received.">{{ $req->staff_feedback }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer border-top bg-light py-2">
+                                        <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-sm btn-primary px-3">Save Changes</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                @empty
+                    <div class="text-center py-4 text-muted small">
+                        <i class="fas fa-lightbulb fa-2x opacity-25 mb-2 d-block"></i>
+                        No client requests submitted for this project.
                     </div>
                 @endforelse
             </div>
@@ -228,26 +372,79 @@
             </div>
             
             @forelse($project->repositories as $repo)
-                <div class="p-3 border rounded-3 mb-2 bg-light">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="p-3 border rounded-3 mb-3 bg-light">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
-                            <div class="fw-semibold text-dark small">{{ $repo->repo_owner }}/{{ $repo->repo_name }}</div>
+                            <a href="{{ $repo->repo_url }}" target="_blank" class="fw-bold text-dark text-decoration-none small">
+                                <i class="fab fa-github me-1"></i> {{ $repo->repo_owner }}/{{ $repo->repo_name }}
+                                <i class="fas fa-arrow-up-right-from-square ms-1 text-muted" style="font-size: 10px;"></i>
+                            </a>
                             <div class="text-muted font-monospace mt-1" style="font-size: 11px;">
-                                <i class="fas fa-code-branch me-1"></i> branch: <code>{{ $repo->default_branch }}</code>
+                                <i class="fas fa-code-branch me-1 text-primary"></i> Branch: <code>{{ $repo->default_branch }}</code>
                             </div>
                         </div>
-                        @if($repo->latest_release_tag)
-                            <span class="badge badge-soft-success font-monospace">{{ $repo->latest_release_tag }}</span>
+                        <span class="badge {{ $repo->last_sync_status === 'success' ? 'badge-soft-success' : 'badge-soft-warning' }}" style="font-size: 11px;">
+                            {{ ucfirst($repo->last_sync_status ?? 'Connected') }}
+                        </span>
+                    </div>
+
+                    <!-- Release Tag & Stats -->
+                    <div class="p-2 bg-white rounded border mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                            <span class="text-muted small" style="font-size: 11.5px;">Latest Release Tag:</span>
+                            @if($repo->latest_release_tag)
+                                <span class="badge badge-soft-success font-monospace fw-bold">{{ $repo->latest_release_tag }}</span>
+                            @else
+                                <span class="badge bg-light text-muted border font-monospace" style="font-size: 10.5px;">No GitHub Releases Yet</span>
+                            @endif
+                        </div>
+                        
+                        @php
+                            $latestLog = $repo->syncLogs->first();
+                            $payload = $latestLog->payload ?? [];
+                        @endphp
+                        @if($payload)
+                            <div class="d-flex justify-content-around text-center pt-1" style="font-size: 11px;">
+                                <div><i class="fas fa-star text-warning me-1"></i><strong>{{ $payload['stars'] ?? 0 }}</strong> <span class="text-muted">stars</span></div>
+                                <div><i class="fas fa-code-fork text-secondary me-1"></i><strong>{{ $payload['forks'] ?? 0 }}</strong> <span class="text-muted">forks</span></div>
+                                <div><i class="fas fa-circle-dot text-danger me-1"></i><strong>{{ $payload['open_issues'] ?? 0 }}</strong> <span class="text-muted">issues</span></div>
+                            </div>
+                        @endif
+
+                        @if(!empty($payload['commits']))
+                            <div class="mt-2 pt-2 border-top">
+                                <div class="text-uppercase text-muted fw-bold mb-1" style="font-size: 10px; letter-spacing: 0.05em;">
+                                    <i class="fas fa-code-commit text-primary me-1"></i> Recent Commits ({{ count($payload['commits']) }})
+                                </div>
+                                <div class="d-flex flex-column gap-1">
+                                    @foreach(array_slice($payload['commits'], 0, 3) as $commit)
+                                        <div class="p-1 rounded bg-light" style="font-size: 11px;">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <code class="text-primary fw-bold" style="font-size: 10px;">{{ $commit['sha'] }}</code>
+                                                <span class="text-muted" style="font-size: 10px;">{{ $commit['date'] }}</span>
+                                            </div>
+                                            <div class="text-truncate text-dark fw-medium mt-1" title="{{ $commit['message'] }}">
+                                                {{ $commit['message'] }}
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+                        @if($repo->last_synced_at)
+                            <div class="text-muted text-center pt-1 mt-1 border-top" style="font-size: 10.5px;">
+                                <i class="fas fa-clock me-1 opacity-75"></i> Last synced: {{ $repo->last_synced_at->diffForHumans() }}
+                            </div>
                         @endif
                     </div>
-                    <div class="mt-3">
-                        <form method="POST" action="{{ route('admin.github.sync', $repo) }}">
-                            @csrf
-                            <button type="submit" class="btn btn-sm btn-light border w-100 text-dark" style="font-size: 12px;">
-                                <i class="fas fa-rotate me-1 text-primary"></i> Sync Repository Commits
-                            </button>
-                        </form>
-                    </div>
+
+                    <form method="POST" action="{{ route('admin.github.sync', $repo) }}">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-white border w-100 shadow-sm text-dark fw-semibold" style="font-size: 12px;">
+                            <i class="fas fa-rotate me-1 text-primary"></i> Sync Repository Now
+                        </button>
+                    </form>
                 </div>
             @empty
                 <div class="text-center py-4 text-muted small">
@@ -283,22 +480,101 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4 small">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Milestone Title <span class="text-danger">*</span></label>
-                        <input type="text" name="title" class="form-control" placeholder="e.g. Architecture Signoff & Staging Deployment" required>
+                    <div class="row g-2 mb-3">
+                        <div class="col-8">
+                            <label class="form-label fw-semibold">Milestone / Deliverable Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" placeholder="e.g. Architecture Signoff & Staging Deployment" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label fw-semibold">Type</label>
+                            <select name="deliverable_type" class="form-select">
+                                <option value="Feature">Feature</option>
+                                <option value="UI & Design">UI & Design</option>
+                                <option value="Integration">Integration</option>
+                                <option value="Security & QA">Security & QA</option>
+                                <option value="Documentation">Documentation</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Target Due Date</label>
+                            <input type="date" name="due_date" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Staging / Demo URL</label>
+                            <input type="url" name="demo_url" class="form-control" placeholder="https://staging.domain.com/demo">
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Target Due Date</label>
-                        <input type="date" name="due_date" class="form-control">
+                        <label class="form-label fw-semibold">Deliverable Scope & Overview</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Define deliverable overview..."></textarea>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Deliverable Scope & Criteria</label>
-                        <textarea name="description" class="form-control" rows="3" placeholder="Define completion conditions..."></textarea>
+                        <label class="form-label fw-semibold">Acceptance Criteria / Sign-off Checklist</label>
+                        <textarea name="acceptance_criteria" class="form-control" rows="3" placeholder="- User can checkout via UPI&#10;- Webhook signature validated&#10;- Invoice PDF generated"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer border-top">
                     <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-primary px-3">Create Milestone</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-3">Create Deliverable Milestone</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Admin Add Requirement -->
+<div class="modal fade" id="adminAddReqModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form method="POST" action="{{ route('admin.projects.requirements.store', $project) }}">
+                @csrf
+                <div class="modal-header border-bottom bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-plus-circle text-primary me-1"></i> Add Client Requirement / Feature
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 small">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Requirement Title <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control" placeholder="e.g. Implement Multi-Currency Razorpay Gateway" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Priority</label>
+                            <select name="priority" class="form-select">
+                                <option value="Medium">Medium Priority</option>
+                                <option value="High">High Priority</option>
+                                <option value="Critical">Critical Priority</option>
+                                <option value="Low">Low Priority</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Initial Status</label>
+                            <select name="status" class="form-select">
+                                <option value="Submitted">Submitted</option>
+                                <option value="Under Review">Under Review</option>
+                                <option value="Planned">Planned</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Specification Details <span class="text-danger">*</span></label>
+                        <textarea name="details" class="form-control" rows="3" placeholder="Outline specific client requirements, user stories, or acceptance rules..." required></textarea>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Staff Feedback Note</label>
+                        <textarea name="staff_feedback" class="form-control" rows="2" placeholder="Internal or client-facing response note..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top bg-light py-2">
+                    <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-3">Save Requirement</button>
                 </div>
             </form>
         </div>

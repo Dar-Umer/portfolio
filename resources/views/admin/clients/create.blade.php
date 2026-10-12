@@ -118,6 +118,10 @@
                                 <option value="Agency">Agency / White Label</option>
                             </select>
                         </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-semibold">Private Internal Staff Notes</label>
+                            <textarea name="notes" class="form-control" rows="2" placeholder="Internal instructions, client background or requirements...">{{ old('notes') }}</textarea>
+                        </div>
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-4">

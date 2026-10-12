@@ -163,12 +163,126 @@ class ClientPortalController extends Controller
         }
 
         $project->load([
-            'milestones' => fn($q) => $q->where('is_client_visible', true),
-            'timelineEvents' => fn($q) => $q->where('is_client_visible', true),
+            'milestones' => fn($q) => $q->where('is_client_visible', true)->orderBy('sort_order'),
+            'requirements' => fn($q) => $q->latest(),
+            'timelineEvents' => fn($q) => $q->where('is_client_visible', true)->latest(),
             'tickets.status',
         ]);
 
         return view('client.projects.show', compact('project'));
+    }
+
+    public function storeRequirement(Request $request, Project $project): RedirectResponse
+    {
+        $client = $this->getClientProfile();
+
+        if ($project->client_profile_id !== $client->id) {
+            abort(403, 'Unauthorized access to project.');
+        }
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'details' => ['required', 'string'],
+            'priority' => ['required', 'in:Low,Medium,High,Critical'],
+        ]);
+
+        $requirement = $project->requirements()->create([
+            'user_id' => auth()->id(),
+            'title' => $validated['title'],
+            'details' => $validated['details'],
+            'priority' => $validated['priority'],
+            'status' => 'Submitted',
+        ]);
+
+        // Record timeline event
+        \App\Models\ProjectTimelineEvent::create([
+            'project_id' => $project->id,
+            'user_id' => auth()->id(),
+            'event_type' => 'requirement_requested',
+            'title' => "Client Requested Feature: {$requirement->title}",
+            'description' => "Requirement registered with {$requirement->priority} priority.",
+            'is_client_visible' => true,
+        ]);
+
+        \App\Services\Audit\AuditService::log('client_requirement_submitted', $project, "Client submitted requirement: {$requirement->title}");
+
+        return back()->with('success', 'Your deliverable requirement has been submitted. Our engineering team will review and estimate it.');
+    }
+
+    public function approveMilestone(Request $request, Project $project, \App\Models\ProjectMilestone $milestone): RedirectResponse
+    {
+        $client = $this->getClientProfile();
+
+        if ($project->client_profile_id !== $client->id || $milestone->project_id !== $project->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'client_review_note' => ['nullable', 'string'],
+        ]);
+
+        $milestone->update([
+            'status' => 'completed',
+            'progress' => 100,
+            'completion_date' => now(),
+            'client_approved_at' => now(),
+            'client_review_note' => $request->client_review_note ?: 'Approved by Client via Client Portal',
+        ]);
+
+        // Recalculate project progress
+        $totalMilestones = $project->milestones()->count();
+        if ($totalMilestones > 0) {
+            $avgProgress = (int) round($project->milestones()->avg('progress'));
+            $project->update(['progress_percentage' => $avgProgress]);
+            if ($avgProgress === 100) {
+                $project->update(['status' => 'Completed', 'actual_completion_date' => now()]);
+            }
+        }
+
+        \App\Models\ProjectTimelineEvent::create([
+            'project_id' => $project->id,
+            'user_id' => auth()->id(),
+            'event_type' => 'milestone_completed',
+            'title' => "Client Approved Deliverable: {$milestone->title}",
+            'description' => "Customer approved milestone completion. " . ($request->client_review_note ? "Feedback: {$request->client_review_note}" : ''),
+            'is_client_visible' => true,
+        ]);
+
+        \App\Services\Audit\AuditService::log('milestone_client_approved', $project, "Client approved milestone: {$milestone->title}");
+
+        return back()->with('success', "Deliverable '{$milestone->title}' marked as Approved and Completed!");
+    }
+
+    public function requestMilestoneRevision(Request $request, Project $project, \App\Models\ProjectMilestone $milestone): RedirectResponse
+    {
+        $client = $this->getClientProfile();
+
+        if ($project->client_profile_id !== $client->id || $milestone->project_id !== $project->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'revision_reason' => ['required', 'string'],
+        ]);
+
+        $milestone->update([
+            'status' => 'in_progress',
+            'client_review_note' => "Revision Requested: " . $request->revision_reason,
+            'client_approved_at' => null,
+        ]);
+
+        \App\Models\ProjectTimelineEvent::create([
+            'project_id' => $project->id,
+            'user_id' => auth()->id(),
+            'event_type' => 'revision_requested',
+            'title' => "Revision Requested: {$milestone->title}",
+            'description' => $request->revision_reason,
+            'is_client_visible' => true,
+        ]);
+
+        \App\Services\Audit\AuditService::log('milestone_revision_requested', $project, "Client requested revision on milestone: {$milestone->title}");
+
+        return back()->with('warning', "Revision feedback sent to engineering team for deliverable '{$milestone->title}'.");
     }
 
     // Client Quotations View

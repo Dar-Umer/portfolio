@@ -57,6 +57,10 @@ Route::middleware(['auth', 'role:Super Admin|Administrator|Developer'])->prefix(
     Route::get('/projects/{project}', [ProjectManagementController::class, 'show'])->name('projects.show');
     Route::post('/projects/{project}/milestones', [ProjectManagementController::class, 'addMilestone'])->name('projects.milestone');
     Route::post('/projects/{project}/milestones/{milestone}/status', [ProjectManagementController::class, 'updateMilestoneStatus'])->name('projects.milestones.status');
+    Route::post('/projects/{project}/requirements', [ProjectManagementController::class, 'storeRequirement'])->name('projects.requirements.store');
+    Route::post('/projects/{project}/requirements/{requirement}/convert', [ProjectManagementController::class, 'convertRequirementToMilestone'])->name('projects.requirements.convert');
+    Route::put('/projects/{project}/requirements/{requirement}', [ProjectManagementController::class, 'updateRequirement'])->name('projects.requirements.update');
+    Route::delete('/projects/{project}/requirements/{requirement}', [ProjectManagementController::class, 'destroyRequirement'])->name('projects.requirements.destroy');
     Route::post('/projects/{project}/status', [ProjectManagementController::class, 'updateStatus'])->name('projects.status');
 
     // Support Tickets Management
@@ -126,9 +130,12 @@ Route::middleware(['auth', 'role:Customer'])->prefix('portal')->name('client.')-
     Route::get('/tickets/{ticket}', [ClientPortalController::class, 'showTicket'])->name('tickets.show');
     Route::post('/tickets/{ticket}/reply', [ClientPortalController::class, 'replyTicket'])->name('tickets.reply');
 
-    // Projects
+    // Projects & Deliverable Workflows
     Route::get('/projects', [ClientPortalController::class, 'projects'])->name('projects.index');
     Route::get('/projects/{project}', [ClientPortalController::class, 'showProject'])->name('projects.show');
+    Route::post('/projects/{project}/requirements', [ClientPortalController::class, 'storeRequirement'])->name('projects.requirements.store');
+    Route::post('/projects/{project}/milestones/{milestone}/approve', [ClientPortalController::class, 'approveMilestone'])->name('projects.milestones.approve');
+    Route::post('/projects/{project}/milestones/{milestone}/revision', [ClientPortalController::class, 'requestMilestoneRevision'])->name('projects.milestones.revision');
 
     // Quotations
     Route::get('/quotations', [ClientPortalController::class, 'quotations'])->name('quotations.index');

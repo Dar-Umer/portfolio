@@ -23,7 +23,13 @@ class SettingsController extends Controller
         $inputs = $request->except(['_token']);
 
         foreach ($inputs as $key => $value) {
-            Setting::where('key', $key)->update(['value' => $value]);
+            $group = match ($key) {
+                'ticket_reopen_days' => 'tickets',
+                'business_address', 'seller_gstin', 'seller_state', 'default_currency' => 'business',
+                'project_categories' => 'projects',
+                default => 'general',
+            };
+            Setting::set($key, $value, $group);
         }
 
         AuditService::log('system_settings_updated', null, "Updated system configuration settings");
