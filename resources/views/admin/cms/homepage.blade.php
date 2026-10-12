@@ -3,13 +3,15 @@
 @section('page_title', 'CMS: Homepage Dynamic Sections')
 
 @section('content')
+@include('admin.cms._nav')
+
 <div class="row g-4">
     @foreach($sections as $sec)
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm p-4 bg-white h-100">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0 text-dark text-uppercase"><i class="fas fa-layer-group text-primary me-2"></i> Section: {{ $sec->section_key }}</h6>
-                    <span class="badge {{ $sec->is_enabled ? 'bg-success' : 'bg-secondary' }}">{{ $sec->is_enabled ? 'Active' : 'Disabled' }}</span>
+                    <span class="badge {{ $sec->is_enabled ? 'badge-soft-success' : 'badge-soft-secondary' }}">{{ $sec->is_enabled ? 'Active' : 'Disabled' }}</span>
                 </div>
 
                 <form method="POST" action="{{ route('admin.cms.homepage.update', $sec) }}">

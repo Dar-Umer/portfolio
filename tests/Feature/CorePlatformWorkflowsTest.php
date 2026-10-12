@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\ClientProfile;
 use App\Models\Invoice;
 use App\Models\Project;
+use App\Models\ProjectMilestone;
+use App\Models\ProjectTimelineEvent;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\Ticket;
@@ -17,6 +19,7 @@ use App\Services\Common\DocumentNumberService;
 use App\Services\Payments\PaymentService;
 use App\Services\Tickets\TicketWorkflowEngine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class CorePlatformWorkflowsTest extends TestCase
@@ -29,8 +32,8 @@ class CorePlatformWorkflowsTest extends TestCase
         $this->seed();
     }
 
-    /** @test */
-    public function it_generates_concurrency_safe_unique_sequential_document_numbers()
+    #[Test]
+    public function it_generates_concurrency_safe_unique_sequential_document_numbers(): void
     {
         $doc1 = DocumentNumberService::generate('TKT', 'tickets', 'ticket_number');
         $this->assertStringStartsWith('TKT-2026-', $doc1);
@@ -51,8 +54,8 @@ class CorePlatformWorkflowsTest extends TestCase
         $this->assertEquals('TKT-2026-000002', $doc2);
     }
 
-    /** @test */
-    public function it_calculates_slas_and_enforces_validated_ticket_status_transitions()
+    #[Test]
+    public function it_calculates_slas_and_enforces_validated_ticket_status_transitions(): void
     {
         $client = ClientProfile::first();
         $openStatus = TicketStatus::where('slug', 'open')->first();
@@ -98,8 +101,8 @@ class CorePlatformWorkflowsTest extends TestCase
         $this->assertNotNull($ticket->resolved_at);
     }
 
-    /** @test */
-    public function it_protects_internal_notes_from_customer_queries()
+    #[Test]
+    public function it_protects_internal_notes_from_customer_queries(): void
     {
         $client = ClientProfile::first();
         $status = TicketStatus::where('slug', 'open')->first();
@@ -135,8 +138,8 @@ class CorePlatformWorkflowsTest extends TestCase
         $this->assertEquals('We are reviewing the logs.', $clientVisibleComments->first()->comment);
     }
 
-    /** @test */
-    public function it_converts_accepted_quotation_to_immutable_invoice_and_processes_payment_allocations()
+    #[Test]
+    public function it_converts_accepted_quotation_to_immutable_invoice_and_processes_payment_allocations(): void
     {
         $client = ClientProfile::first();
         $admin = User::where('email', 'admin@theumer.store')->first();
@@ -188,5 +191,108 @@ class CorePlatformWorkflowsTest extends TestCase
         $this->assertEquals('Paid', $invoice->status);
         $this->assertEquals(10620.00, $invoice->amount_paid);
         $this->assertEquals(0.00, $invoice->balance_due);
+    }
+
+    #[Test]
+    public function it_tracks_staff_first_response_sla_and_handles_customer_portal_reply_automations(): void
+    {
+        $client = ClientProfile::first();
+        $openStatus = TicketStatus::where('slug', 'open')->first();
+        $awaitingCustomerStatus = TicketStatus::where('slug', 'awaiting-customer')->first();
+        $admin = User::where('email', 'admin@theumer.store')->first();
+        $clientUser = $client->user;
+
+        $ticket = Ticket::create([
+            'ticket_number' => 'TKT-2026-000777',
+            'client_profile_id' => $client->id,
+            'ticket_status_id' => $openStatus->id,
+            'subject' => 'SSL certificate renewal required',
+            'description' => 'Cert expires in 3 days',
+            'priority' => 'High',
+            'first_response_due_at' => now()->addHours(4),
+            'resolution_due_at' => now()->addHours(24),
+        ]);
+
+        $this->assertNull($ticket->first_responded_at);
+
+        // Staff response recorded
+        $staffComment = TicketComment::create([
+            'ticket_id' => $ticket->id,
+            'user_id' => $admin->id,
+            'comment' => 'We are reviewing DNS entries.',
+            'is_internal_note' => false,
+        ]);
+
+        TicketWorkflowEngine::recordStaffResponse($ticket, $staffComment, $admin);
+        $ticket->refresh();
+        $this->assertNotNull($ticket->first_responded_at);
+        $this->assertFalse($ticket->is_sla_breached);
+
+        // Move to awaiting customer
+        $ticket->update(['ticket_status_id' => $awaitingCustomerStatus->id]);
+
+        // Customer replies
+        $customerComment = TicketComment::create([
+            'ticket_id' => $ticket->id,
+            'user_id' => $clientUser->id,
+            'comment' => 'DNS TXT record updated.',
+            'is_internal_note' => false,
+        ]);
+
+        TicketWorkflowEngine::handleCustomerReply($ticket, $customerComment, $clientUser);
+        $ticket->refresh();
+
+        // Ticket automatically returned to in-progress
+        $this->assertEquals('in-progress', $ticket->status->slug);
+    }
+
+    #[Test]
+    public function it_updates_project_milestones_and_recalculates_overall_project_progress(): void
+    {
+        $client = ClientProfile::first();
+        $project = Project::create([
+            'client_profile_id' => $client->id,
+            'project_number' => 'PRJ-2026-000100',
+            'name' => 'CRM Integration Portal',
+            'slug' => 'crm-integration-portal-test',
+            'category' => 'Web App',
+            'status' => 'In Development',
+            'priority' => 'High',
+            'progress_percentage' => 0,
+            'budget' => 50000.00,
+        ]);
+
+        $m1 = ProjectMilestone::create([
+            'project_id' => $project->id,
+            'title' => 'Database Schema Migration',
+            'status' => 'pending',
+            'progress' => 0,
+            'is_client_visible' => true,
+            'sort_order' => 1,
+        ]);
+
+        $m2 = ProjectMilestone::create([
+            'project_id' => $project->id,
+            'title' => 'API Gateway Endpoints',
+            'status' => 'pending',
+            'progress' => 0,
+            'is_client_visible' => true,
+            'sort_order' => 2,
+        ]);
+
+        // Mark m1 completed
+        $m1->update(['status' => 'completed', 'progress' => 100]);
+        $progress = $project->recalculateProgress();
+
+        // 1 of 2 completed = 50%
+        $this->assertEquals(50, $progress);
+        $this->assertEquals(50, $project->fresh()->progress_percentage);
+
+        // Mark m2 in_progress (50% weight)
+        $m2->update(['status' => 'in_progress', 'progress' => 50]);
+        $progress2 = $project->recalculateProgress();
+
+        // (100 + 50) / 2 = 75%
+        $this->assertEquals(75, $progress2);
     }
 }

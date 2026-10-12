@@ -73,4 +73,23 @@ class Project extends Model
     {
         return $this->hasMany(Invoice::class);
     }
+
+    public function recalculateProgress(): int
+    {
+        $milestones = $this->milestones()->get();
+        if ($milestones->isEmpty()) {
+            return $this->progress_percentage;
+        }
+
+        $total = $milestones->count();
+        $completed = $milestones->where('status', 'completed')->count();
+        $inProgress = $milestones->where('status', 'in_progress')->count();
+
+        $percentage = (int) round(($completed * 100 + $inProgress * 50) / $total);
+        $percentage = min(100, max(0, $percentage));
+
+        $this->update(['progress_percentage' => $percentage]);
+
+        return $percentage;
+    }
 }

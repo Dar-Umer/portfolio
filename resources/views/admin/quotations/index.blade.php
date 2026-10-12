@@ -3,46 +3,55 @@
 @section('page_title', 'Quotations & Proposals')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
     <div>
+        <h4 class="fw-bold mb-1" style="color: var(--app-text-main); letter-spacing: -0.02em;">Commercial Proposals & Quotes</h4>
         <p class="text-muted small mb-0">Prepare commercial proposals, calculate tax rates, export PDFs, and convert accepted quotes into invoices.</p>
     </div>
-    <a href="{{ route('admin.quotations.create') }}" class="btn btn-primary btn-sm">
-        <i class="fas fa-plus me-1"></i> New Quotation
-    </a>
+    <div class="d-flex align-items-center gap-2">
+        <a href="{{ route('admin.quotations.create') }}" class="btn btn-primary shadow-sm">
+            <i class="fas fa-plus"></i> New Quotation
+        </a>
+    </div>
 </div>
 
 <div class="card border-0 shadow-sm">
     <div class="table-responsive">
-        <table class="table align-middle mb-0">
+        <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
-                    <th>Quotation #</th>
-                    <th>Client</th>
+                    <th>Quote ID</th>
+                    <th>Client Organization</th>
                     <th>Issue Date</th>
                     <th>Expiry Date</th>
                     <th>Grand Total</th>
                     <th>Status</th>
-                    <th class="text-end">Action</th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($quotations as $q)
                     <tr>
-                        <td><span class="fw-bold font-monospace text-primary">{{ $q->quotation_number }}</span></td>
                         <td>
-                            <div class="fw-semibold text-dark">{{ $q->client->company_name ?? $q->client->user->name }}</div>
+                            <span class="badge badge-soft-primary font-monospace px-2 py-1 fw-bold">
+                                {{ $q->quotation_number }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-dark small">
+                                {{ $q->client->company_name ?? $q->client->user->name }}
+                            </div>
                         </td>
                         <td><span class="text-muted small">{{ $q->issue_date->format('d M Y') }}</span></td>
                         <td><span class="text-muted small">{{ $q->expiry_date->format('d M Y') }}</span></td>
-                        <td><span class="fw-bold">{{ $q->currency }} {{ number_format($q->grand_total, 2) }}</span></td>
+                        <td><span class="fw-bold text-dark">{{ $q->currency }} {{ number_format($q->grand_total, 2) }}</span></td>
                         <td>
                             @php
                                 $qBadge = match($q->status) {
-                                    'Accepted', 'Converted to Invoice' => 'bg-success',
-                                    'Sent' => 'bg-info text-dark',
-                                    'Rejected', 'Expired' => 'bg-danger',
-                                    default => 'bg-secondary'
+                                    'Accepted', 'Converted to Invoice' => 'badge-soft-success',
+                                    'Sent' => 'badge-soft-info',
+                                    'Rejected', 'Expired' => 'badge-soft-danger',
+                                    default => 'badge-soft-dark'
                                 };
                             @endphp
                             <span class="badge {{ $qBadge }}">
@@ -50,21 +59,37 @@
                             </span>
                         </td>
                         <td class="text-end">
-                            <a href="{{ route('admin.quotations.show', $q) }}" class="btn btn-sm btn-outline-primary py-1 px-2" title="View Proposal"><i class="fas fa-eye"></i> View</a>
-                            <a href="{{ route('admin.quotations.pdf', $q) }}" class="btn btn-sm btn-outline-danger py-1 px-2 ms-1" title="Download PDF"><i class="fas fa-file-pdf"></i></a>
+                            <div class="d-inline-flex gap-1">
+                                <a href="{{ route('admin.quotations.show', $q) }}" class="btn btn-sm btn-light border py-1 px-2" title="View Proposal">
+                                    <i class="fas fa-eye text-muted"></i>
+                                </a>
+                                <a href="{{ route('admin.quotations.pdf', $q) }}" class="btn btn-sm btn-light border py-1 px-2" title="Download PDF">
+                                    <i class="fas fa-file-pdf text-danger"></i>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">No quotations created yet.</td>
+                        <td colspan="7" class="text-center py-5">
+                            <div class="text-muted mb-3">
+                                <i class="fas fa-file-invoice fa-3x opacity-25"></i>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-1">No Quotations Issued</h6>
+                            <p class="text-muted small mb-3">No commercial quotes or client proposals drafted yet.</p>
+                            <a href="{{ route('admin.quotations.create') }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i> Create First Quotation
+                            </a>
+                        </td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
     @if($quotations->hasPages())
-        <div class="card-footer bg-white border-0 py-3">
-            {{ $quotations->links() }}
+        <div class="card-footer bg-white border-top py-3 d-flex justify-content-between align-items-center">
+            <span class="small text-muted">Showing {{ $quotations->firstItem() ?? 0 }} to {{ $quotations->lastItem() ?? 0 }} of {{ $quotations->total() }} quotations</span>
+            <div>{{ $quotations->links() }}</div>
         </div>
     @endif
 </div>

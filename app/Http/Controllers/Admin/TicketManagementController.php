@@ -69,12 +69,14 @@ class TicketManagementController extends Controller
             'is_internal_note' => ['nullable', 'boolean'],
         ]);
 
-        TicketComment::create([
+        $comment = TicketComment::create([
             'ticket_id' => $ticket->id,
             'user_id' => auth()->id(),
             'comment' => $request->comment,
             'is_internal_note' => $request->boolean('is_internal_note'),
         ]);
+
+        TicketWorkflowEngine::recordStaffResponse($ticket, $comment, auth()->user());
 
         AuditService::log(
             'ticket_reply',

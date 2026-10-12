@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\Quotation;
+use App\Models\ProjectTimelineEvent;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketComment;
 use App\Models\TicketStatus;
+use App\Services\Audit\AuditService;
 use App\Services\Common\DocumentNumberService;
 use App\Services\Tickets\TicketWorkflowEngine;
 use Illuminate\Http\RedirectResponse;
@@ -132,12 +134,14 @@ class ClientPortalController extends Controller
             'comment' => ['required', 'string'],
         ]);
 
-        TicketComment::create([
+        $comment = TicketComment::create([
             'ticket_id' => $ticket->id,
             'user_id' => auth()->id(),
             'comment' => $request->comment,
             'is_internal_note' => false,
         ]);
+
+        TicketWorkflowEngine::handleCustomerReply($ticket, $comment, auth()->user());
 
         return back()->with('success', 'Reply posted successfully.');
     }
@@ -204,6 +208,19 @@ class ClientPortalController extends Controller
             'accepted_at' => now(),
             'accepted_by_user_id' => auth()->id(),
         ]);
+
+        if ($quotation->project_id) {
+            ProjectTimelineEvent::create([
+                'project_id' => $quotation->project_id,
+                'user_id' => auth()->id(),
+                'event_type' => 'quotation_accepted',
+                'title' => "Quotation Accepted: {$quotation->quotation_number}",
+                'description' => "Quotation for {$quotation->grand_total} {$quotation->currency} accepted by client.",
+                'is_client_visible' => true,
+            ]);
+        }
+
+        AuditService::log('quotation_accepted_by_client', $quotation, "Client accepted quotation {$quotation->quotation_number}");
 
         return back()->with('success', 'Thank you! You have accepted the quotation.');
     }

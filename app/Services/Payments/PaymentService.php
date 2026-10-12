@@ -60,6 +60,17 @@ class PaymentService
                 'status' => $newStatus,
             ]);
 
+            if ($invoice->project_id) {
+                \App\Models\ProjectTimelineEvent::create([
+                    'project_id' => $invoice->project_id,
+                    'user_id' => auth()->id(),
+                    'event_type' => 'payment_recorded',
+                    'title' => "Payment Recorded: {$payment->receipt_number}",
+                    'description' => "Received {$amount} {$invoice->currency} for invoice {$invoice->invoice_number}. Invoice status: {$newStatus}.",
+                    'is_client_visible' => true,
+                ]);
+            }
+
             AuditService::log('payment_recorded', $payment, "Recorded payment {$payment->receipt_number} of {$amount} {$invoice->currency} for invoice {$invoice->invoice_number}");
 
             return $payment->load('allocations');

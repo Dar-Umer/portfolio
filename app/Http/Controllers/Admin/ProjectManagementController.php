@@ -72,15 +72,15 @@ class ProjectManagementController extends Controller
             'name' => $validated['name'],
             'slug' => $slug,
             'category' => $validated['category'],
-            'description' => $validated['description'],
-            'start_date' => $validated['start_date'],
-            'expected_delivery_date' => $validated['expected_delivery_date'],
+            'description' => $validated['description'] ?? null,
+            'start_date' => $validated['start_date'] ?? null,
+            'expected_delivery_date' => $validated['expected_delivery_date'] ?? null,
             'status' => 'Planning',
             'priority' => $validated['priority'],
             'progress_percentage' => 0,
             'budget' => $validated['budget'],
             'technologies' => $techArray,
-            'internal_notes' => $validated['internal_notes'],
+            'internal_notes' => $validated['internal_notes'] ?? null,
         ]);
 
         // Record initial timeline event
@@ -174,5 +174,38 @@ class ProjectManagementController extends Controller
         AuditService::log('project_status_update', $project, "Updated project {$project->project_number} status from {$oldStatus} to {$validated['status']}");
 
         return back()->with('success', 'Project status and progress updated.');
+    }
+
+    public function updateMilestoneStatus(Request $request, Project $project, ProjectMilestone $milestone): RedirectResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', 'in:pending,in_progress,completed,cancelled'],
+            'progress' => ['nullable', 'integer', 'min:0', 'max:100'],
+        ]);
+
+        $status = $validated['status'];
+        $progress = $validated['progress'] ?? ($status === 'completed' ? 100 : ($status === 'in_progress' ? 50 : 0));
+        $completionDate = $status === 'completed' ? now() : null;
+
+        $milestone->update([
+            'status' => $status,
+            'progress' => $progress,
+            'completion_date' => $completionDate,
+        ]);
+
+        $newProjectProgress = $project->recalculateProgress();
+
+        ProjectTimelineEvent::create([
+            'project_id' => $project->id,
+            'user_id' => auth()->id(),
+            'event_type' => 'milestone_updated',
+            'title' => "Milestone Updated: {$milestone->title}",
+            'description' => "Status changed to " . ucfirst(str_replace('_', ' ', $status)) . " ({$progress}%). Project overall progress is now {$newProjectProgress}%.",
+            'is_client_visible' => $milestone->is_client_visible,
+        ]);
+
+        AuditService::log('milestone_updated', $project, "Updated milestone {$milestone->title} to {$status}");
+
+        return back()->with('success', "Milestone '{$milestone->title}' updated and project progress recalculated ({$newProjectProgress}%).");
     }
 }

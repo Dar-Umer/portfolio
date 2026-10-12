@@ -10,7 +10,7 @@ use App\Models\Project;
 use App\Models\Ticket;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -69,7 +69,7 @@ class ReportsController extends Controller
         return view('admin.reports.index', compact('projectsByStatus', 'ticketsByPriority', 'ticketsByStatus', 'monthlyRevenue', 'stats'));
     }
 
-    public function exportCsv(string $type): Response
+    public function exportCsv(string $type): StreamedResponse
     {
         $headers = [
             'Content-Type' => 'text/csv',

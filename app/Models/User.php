@@ -31,6 +31,16 @@ class User extends Authenticatable
         return $this->hasOne(ClientProfile::class);
     }
 
+    public function isStaff(): bool
+    {
+        return $this->hasAnyRole(['Super Admin', 'Administrator', 'Developer']);
+    }
+
+    public function isCustomer(): bool
+    {
+        return $this->hasRole('Customer');
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *

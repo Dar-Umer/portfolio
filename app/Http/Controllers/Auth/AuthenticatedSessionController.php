@@ -27,11 +27,15 @@ class AuthenticatedSessionController extends Controller
 
             $user = Auth::user();
 
-            if ($user->hasRole('Super Admin') || $user->hasRole('Administrator')) {
+            if ($user->isStaff()) {
                 return redirect()->intended(route('admin.dashboard'));
             }
 
-            return redirect()->intended(route('client.dashboard'));
+            if ($user->isCustomer() && $user->clientProfile) {
+                return redirect()->intended(route('client.dashboard'));
+            }
+
+            return redirect()->intended('/');
         }
 
         return back()->withErrors([

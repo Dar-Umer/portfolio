@@ -27,12 +27,12 @@
                     @csrf
                     <div class="mb-3">
                         <label for="email" class="form-label small fw-semibold">Email Address</label>
-                        <input type="email" class="form-control" id="email" name="email" value="{{ old('email', 'admin@theumer.store') }}" required autofocus>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ old('email') }}" placeholder="name@company.com" required autofocus>
                     </div>
 
                     <div class="mb-3">
                         <label for="password" class="form-label small fw-semibold">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" value="password123" required>
+                        <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
                     </div>
 
                     <div class="mb-3 form-check d-flex justify-content-between align-items-center">
@@ -46,12 +46,6 @@
                         Sign In to Portal <i class="fas fa-arrow-right ms-1"></i>
                     </button>
                 </form>
-
-                <div class="mt-4 pt-3 border-top text-center small text-muted">
-                    Demo Accounts:<br>
-                    <strong>Super Admin:</strong> <code>admin@theumer.store</code> (pwd: <code>password123</code>)<br>
-                    <strong>Customer:</strong> <code>client@acme.com</code> (pwd: <code>password123</code>)
-                </div>
             </div>
         </div>
     </div>

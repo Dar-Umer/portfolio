@@ -110,6 +110,17 @@ class BillingService
             // Update quotation status
             $quotation->update(['status' => 'Converted to Invoice']);
 
+            if ($quotation->project_id) {
+                \App\Models\ProjectTimelineEvent::create([
+                    'project_id' => $quotation->project_id,
+                    'user_id' => auth()->id(),
+                    'event_type' => 'invoice_generated',
+                    'title' => "Invoice Generated: {$invoice->invoice_number}",
+                    'description' => "Invoice generated from quotation {$quotation->quotation_number} for {$invoice->grand_total} {$invoice->currency}.",
+                    'is_client_visible' => true,
+                ]);
+            }
+
             AuditService::log('convert_quotation_to_invoice', $invoice, "Converted quotation {$quotation->quotation_number} into invoice {$invoice->invoice_number}");
 
             return $invoice->load(['items', 'client']);
