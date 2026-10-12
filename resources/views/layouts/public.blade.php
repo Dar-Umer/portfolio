@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,15 +23,30 @@
             --brand-dark: #070913;
             --brand-dark-card: #0d1224;
             --brand-border: #1e293b;
+            --bs-body-color: #cbd5e1;
+            --bs-secondary-color: #94a3b8;
+            --bs-tertiary-color: #64748b;
         }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--brand-dark);
-            color: #94a3b8;
+            color: #cbd5e1;
             line-height: 1.6;
             overflow-x: hidden;
             position: relative;
+        }
+
+        .text-muted {
+            color: #94a3b8 !important;
+        }
+
+        .text-secondary {
+            color: #cbd5e1 !important;
+        }
+
+        p, .lead {
+            color: #cbd5e1;
         }
 
         h1, h2, h3, h4, h5, h6, .brand-font {
@@ -273,17 +288,42 @@
             opacity: 1;
         }
 
-        /* Futuristic Neon Text */
+        /* Futuristic Neon Text with High-Contrast Fallbacks */
         .neon-text-cyan {
             background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            color: #00f2fe;
         }
 
         .neon-text-purple {
             background: linear-gradient(135deg, #c084fc 0%, #f472b6 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            color: #c084fc;
+        }
+
+        /* High-Contrast Badges on Dark Surface */
+        .badge.bg-dark {
+            background-color: rgba(15, 23, 42, 0.9) !important;
+            border: 1px solid rgba(255, 255, 255, 0.18) !important;
+            color: #f1f5f9 !important;
+        }
+
+        .footer-cyber .text-muted,
+        .footer-cyber a.text-muted {
+            color: #94a3b8 !important;
+            transition: color 0.2s ease;
+        }
+
+        .footer-cyber a.text-muted:hover {
+            color: #00f2fe !important;
         }
 
         /* Cyber Glow Buttons */
@@ -363,13 +403,108 @@
             50% { transform: translateY(-8px); }
         }
 
-        /* Footer */
-        .footer-cyber {
-            background-color: #04060d;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 70px 0 30px;
-            position: relative;
-            z-index: 10;
+        /* Global Mobile Overflow and Layout Fixes */
+        html, body {
+            overflow-x: clip;
+            max-width: 100vw;
+        }
+
+        .hover-cyan {
+            transition: color 0.2s ease;
+        }
+        .hover-cyan:hover {
+            color: #00f2fe !important;
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+        }
+
+        /* Mobile Navbar Menu Drawer */
+        @media (max-width: 991.98px) {
+            .navbar-collapse {
+                background: rgba(13, 18, 36, 0.97);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border: 1px solid rgba(0, 242, 254, 0.25);
+                border-radius: 16px;
+                padding: 1.25rem;
+                margin-top: 0.85rem;
+                box-shadow: 0 20px 45px rgba(0, 0, 0, 0.7);
+            }
+            .navbar-nav .nav-link {
+                padding: 10px 14px !important;
+                border-radius: 8px;
+                margin-bottom: 4px;
+            }
+            .public-navbar .btn {
+                width: 100%;
+                justify-content: center;
+                padding: 10px 16px;
+            }
+        }
+
+        /* Ambient Orbs Responsive Scaling */
+        @media (max-width: 768px) {
+            .orb-glow {
+                width: 240px !important;
+                height: 240px !important;
+                filter: blur(50px);
+                opacity: 0.22;
+            }
+            .notice-ticker-bar {
+                font-size: 0.76rem;
+            }
+            .notice-badge {
+                padding: 2px 7px;
+                font-size: 0.68rem;
+            }
+            .marquee-content {
+                gap: 1.5rem;
+            }
+            .footer-cyber {
+                padding: 45px 0 25px;
+            }
+        }
+
+        /* Responsive Floating WhatsApp Button */
+        .wa-float-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 2050;
+            background-color: #25d366;
+            font-size: 13.5px;
+            font-weight: 600;
+            box-shadow: 0 0 25px rgba(37, 211, 102, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 50px;
+            text-decoration: none;
+            color: #ffffff !important;
+            transition: all 0.25s ease;
+        }
+        .wa-float-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 35px rgba(37, 211, 102, 0.8);
+            color: #ffffff !important;
+        }
+
+        @media (max-width: 576px) {
+            .wa-float-btn {
+                bottom: 18px;
+                right: 18px;
+                width: 48px;
+                height: 48px;
+                padding: 0;
+                border-radius: 50% !important;
+                justify-content: center;
+            }
+            .wa-float-btn span {
+                display: none;
+            }
+            .wa-float-btn i {
+                font-size: 1.35rem;
+            }
         }
     </style>
     @stack('styles')
@@ -536,13 +671,13 @@
         </div>
     </footer>
 
-    <!-- WhatsApp Floating Action Pill -->
+    <!-- WhatsApp Floating Action Button (Responsive) -->
     <a href="https://wa.me/9109622756099?text=Hello%20Umer%2C%20I%20visited%20your%20portal%20and%20would%20like%20to%20discuss%20a%20project." 
        target="_blank" 
        rel="noopener" 
-       class="position-fixed d-flex align-items-center gap-2 px-3 py-2 text-white rounded-pill text-decoration-none float-slow" 
-       style="bottom: 24px; right: 24px; z-index: 2050; background-color: #25d366; font-size: 13.5px; font-weight: 600; box-shadow: 0 0 25px rgba(37, 211, 102, 0.6);">
-        <i class="fab fa-whatsapp fs-5"></i>
+       class="wa-float-btn float-slow"
+       title="Chat on WhatsApp">
+        <i class="fab fa-whatsapp"></i>
         <span>Chat on WhatsApp</span>
     </a>
 
