@@ -114,7 +114,9 @@ class ProjectManagementController extends Controller
             'repositories.syncLogs',
             'requirements.user',
             'tickets.status',
-            'invoices',
+            'invoices.allocations',
+            'quotations',
+            'documents.uploader',
         ]);
 
         $developers = User::role(['Super Admin', 'Administrator', 'Developer'])->get();
@@ -311,5 +313,251 @@ class ProjectManagementController extends Controller
         AuditService::log('milestone_updated', $project, "Updated milestone {$milestone->title} to {$status}");
 
         return back()->with('success', "Milestone '{$milestone->title}' updated and project progress recalculated ({$newProjectProgress}%).");
+    }
+
+    public function edit(Project $project): View
+    {
+        $clients = ClientProfile::with('user')->where('account_status', 'active')->get();
+        $categoriesSetting = \App\Models\Setting::get('project_categories');
+        if ($categoriesSetting) {
+            $categories = array_filter(array_map('trim', explode(',', $categoriesSetting)));
+        } else {
+            $categories = ['Web Application', 'SaaS Platform', 'API & Microservices', 'DevOps & Infrastructure', 'Mobile API'];
+        }
+
+        return view('admin.projects.edit', compact('project', 'clients', 'categories'));
+    }
+
+    public function update(Request $request, Project $project): RedirectResponse
+    {
+        $validated = $request->validate([
+            'client_profile_id' => ['required', 'exists:client_profiles,id'],
+            'name' => ['required', 'string', 'max:255'],
+            'category' => ['required', 'string', 'max:50'],
+            'description' => ['nullable', 'string'],
+            'start_date' => ['nullable', 'date'],
+            'expected_delivery_date' => ['nullable', 'date'],
+            'actual_completion_date' => ['nullable', 'date'],
+            'priority' => ['required', 'in:Low,Normal,High,Critical'],
+            'status' => ['required', 'string'],
+            'budget' => ['required', 'numeric', 'min:0'],
+            'technologies' => ['nullable', 'string'],
+            'current_deployed_version' => ['nullable', 'string', 'max:50'],
+            'internal_notes' => ['nullable', 'string'],
+        ]);
+
+        $techArray = !empty($validated['technologies'])
+            ? array_map('trim', explode(',', $validated['technologies']))
+            : [];
+
+        $project->update([
+            'client_profile_id' => $validated['client_profile_id'],
+            'name' => $validated['name'],
+            'category' => $validated['category'],
+            'description' => $validated['description'] ?? null,
+            'start_date' => $validated['start_date'] ?? null,
+            'expected_delivery_date' => $validated['expected_delivery_date'] ?? null,
+            'actual_completion_date' => $validated['actual_completion_date'] ?? null,
+            'status' => $validated['status'],
+            'priority' => $validated['priority'],
+            'budget' => $validated['budget'],
+            'technologies' => $techArray,
+            'current_deployed_version' => $validated['current_deployed_version'] ?? null,
+            'internal_notes' => $validated['internal_notes'] ?? null,
+        ]);
+
+        AuditService::log('project_updated', $project, "Updated project details for {$project->project_number}");
+
+        return redirect()->route('admin.projects.show', $project)->with('success', "Project {$project->project_number} details updated successfully.");
+    }
+
+    public function destroy(Project $project): RedirectResponse
+    {
+        $pNumber = $project->project_number;
+
+        // Disallow deletion if active invoices exist
+        if ($project->invoices()->exists()) {
+            return back()->with('error', "Cannot delete project {$pNumber} because invoices have been issued against it. Remove invoices first.");
+        }
+
+        $project->members()->delete();
+        $project->milestones()->delete();
+        $project->requirements()->delete();
+        $project->delete();
+
+        AuditService::log('project_deleted', null, "Deleted project {$pNumber}");
+
+        return redirect()->route('admin.projects.index')->with('success', "Project {$pNumber} was deleted successfully.");
+    }
+
+    public function updateMilestone(Request $request, Project $project, ProjectMilestone $milestone): RedirectResponse
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'deliverable_type' => ['nullable', 'string'],
+            'due_date' => ['nullable', 'date'],
+            'demo_url' => ['nullable', 'url'],
+            'description' => ['nullable', 'string'],
+            'acceptance_criteria' => ['nullable', 'string'],
+            'is_client_visible' => ['nullable', 'boolean'],
+        ]);
+
+        $milestone->update([
+            'title' => $validated['title'],
+            'deliverable_type' => $validated['deliverable_type'] ?? 'Feature',
+            'due_date' => $validated['due_date'],
+            'demo_url' => $validated['demo_url'],
+            'description' => $validated['description'],
+            'acceptance_criteria' => $validated['acceptance_criteria'],
+            'is_client_visible' => $request->boolean('is_client_visible', true),
+        ]);
+
+        AuditService::log('milestone_edited', $project, "Edited deliverable milestone {$milestone->title}");
+
+        return back()->with('success', "Milestone '{$milestone->title}' details updated.");
+    }
+
+    public function destroyMilestone(Project $project, ProjectMilestone $milestone): RedirectResponse
+    {
+        $title = $milestone->title;
+        $milestone->delete();
+
+        $newProgress = $project->recalculateProgress();
+
+        AuditService::log('milestone_deleted', $project, "Deleted milestone {$title}");
+
+        return back()->with('success', "Milestone '{$title}' removed and progress recalculated ({$newProgress}%).");
+    }
+
+    public function addMember(Request $request, Project $project): RedirectResponse
+    {
+        $validated = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+            'role_in_project' => ['required', 'string', 'max:100'],
+        ]);
+
+        // Prevent duplicate assignment
+        $exists = $project->members()->where('user_id', $validated['user_id'])->exists();
+        if ($exists) {
+            return back()->with('error', 'This staff member is already assigned to this project.');
+        }
+
+        $project->members()->create([
+            'user_id' => $validated['user_id'],
+            'role_in_project' => $validated['role_in_project'],
+        ]);
+
+        $assignedUser = User::find($validated['user_id']);
+
+        ProjectTimelineEvent::create([
+            'project_id' => $project->id,
+            'user_id' => auth()->id(),
+            'event_type' => 'team_assigned',
+            'title' => "Staff Assigned: {$assignedUser->name}",
+            'description' => "Assigned as {$validated['role_in_project']}.",
+            'is_client_visible' => true,
+        ]);
+
+        AuditService::log('project_member_added', $project, "Assigned {$assignedUser->name} as {$validated['role_in_project']} to project {$project->project_number}");
+
+        return back()->with('success', "Team member {$assignedUser->name} assigned successfully.");
+    }
+
+    public function removeMember(Project $project, \App\Models\ProjectMember $member): RedirectResponse
+    {
+        $userName = $member->user->name ?? 'Staff member';
+        $member->delete();
+
+        AuditService::log('project_member_removed', $project, "Removed {$userName} from project {$project->project_number}");
+
+        return back()->with('success', "Removed {$userName} from the project team.");
+    }
+
+    public function uploadDocument(Request $request, Project $project): RedirectResponse
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'document' => ['required', 'file', 'max:20480'], // Up to 20MB
+            'category' => ['required', 'string', 'max:50'],
+            'is_client_visible' => ['nullable', 'boolean'],
+        ]);
+
+        $file = $request->file('document');
+        $originalName = $file->getClientOriginalName();
+        $extension = $file->getClientOriginalExtension();
+        $size = $file->getSize();
+
+        $path = $file->store('project_documents/' . $project->id, 'public');
+
+        $doc = $project->documents()->create([
+            'uploaded_by_user_id' => auth()->id(),
+            'title' => $validated['title'],
+            'file_path' => $path,
+            'file_name' => $originalName,
+            'file_type' => strtolower($extension),
+            'file_size' => $size,
+            'category' => $validated['category'],
+            'is_client_visible' => $request->boolean('is_client_visible', true),
+        ]);
+
+        ProjectTimelineEvent::create([
+            'project_id' => $project->id,
+            'user_id' => auth()->id(),
+            'event_type' => 'document_uploaded',
+            'title' => "Document Uploaded: {$doc->title}",
+            'description' => "Uploaded {$originalName} ({$doc->category}).",
+            'is_client_visible' => $doc->is_client_visible,
+        ]);
+
+        AuditService::log('project_document_uploaded', $project, "Uploaded document {$doc->title} ({$originalName}) for project {$project->project_number}");
+
+        return back()->with('success', "Document '{$doc->title}' uploaded successfully.");
+    }
+
+    public function downloadDocument(Project $project, \App\Models\ProjectDocument $document)
+    {
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $filePath = storage_path('app/public/' . $document->file_path);
+        if (!file_exists($filePath)) {
+            return back()->with('error', 'File not found on server.');
+        }
+
+        return response()->download($filePath, $document->file_name);
+    }
+
+    public function destroyDocument(Project $project, \App\Models\ProjectDocument $document): RedirectResponse
+    {
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $title = $document->title;
+        $filePath = storage_path('app/public/' . $document->file_path);
+        if (file_exists($filePath)) {
+            @unlink($filePath);
+        }
+
+        $document->delete();
+
+        AuditService::log('project_document_deleted', $project, "Deleted document {$title} from project {$project->project_number}");
+
+        return back()->with('success', "Document '{$title}' removed.");
+    }
+
+    public function downloadSummaryPdf(Project $project)
+    {
+        $project->load([
+            'client.user',
+            'milestones',
+            'members.user',
+            'invoices',
+        ]);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.project_summary', compact('project'));
+
+        return $pdf->download("Project-Summary-{$project->project_number}.pdf");
     }
 }

@@ -71,6 +71,15 @@
                                 <a href="{{ route('admin.invoices.pdf', $inv) }}" class="btn btn-sm btn-light border py-1 px-2" title="Download PDF">
                                     <i class="fas fa-file-pdf text-danger"></i>
                                 </a>
+                                @hasanyrole('Super Admin|Administrator')
+                                    <form method="POST" action="{{ route('admin.invoices.destroy', $inv) }}" class="d-inline" onsubmit="return confirm('Delete invoice {{ $inv->invoice_number }}?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-light border py-1 px-2 text-danger" title="Delete Invoice">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                @endhasanyrole
                             </div>
                         </td>
                     </tr>

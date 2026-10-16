@@ -35,8 +35,9 @@ class QuotationController extends Controller
     {
         $clients = ClientProfile::with('user')->where('account_status', 'active')->get();
         $projects = Project::orderBy('name')->get();
+        $services = \App\Models\Service::where('is_active', true)->orderBy('sort_order')->get();
 
-        return view('admin.quotations.create', compact('clients', 'projects'));
+        return view('admin.quotations.create', compact('clients', 'projects', 'services'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -130,12 +131,12 @@ class QuotationController extends Controller
     public function convert(Quotation $quotation): RedirectResponse
     {
         try {
-            // If quotation is Sent, mark accepted for conversion
-            if ($quotation->status === 'Sent') {
+            // If quotation is Sent, Draft, or previously Converted to Invoice without an active invoice, mark accepted for conversion
+            if (in_array($quotation->status, ['Sent', 'Draft', 'Converted to Invoice']) && !$quotation->invoice()->exists()) {
                 $quotation->update([
                     'status' => 'Accepted',
-                    'accepted_at' => now(),
-                    'accepted_by_user_id' => auth()->id(),
+                    'accepted_at' => $quotation->accepted_at ?? now(),
+                    'accepted_by_user_id' => $quotation->accepted_by_user_id ?? auth()->id(),
                 ]);
             }
 
@@ -153,5 +154,22 @@ class QuotationController extends Controller
         $pdf = Pdf::loadView('pdf.quotation', compact('quotation'));
 
         return $pdf->download("{$quotation->quotation_number}.pdf");
+    }
+
+    public function destroy(Quotation $quotation): RedirectResponse
+    {
+        $qtnNumber = $quotation->quotation_number;
+
+        // Disallow deletion only if an active (non-deleted) invoice exists
+        if ($quotation->invoice()->exists()) {
+            return back()->with('error', "Cannot delete quotation {$qtnNumber} because an active invoice ({$quotation->invoice->invoice_number}) is currently issued from it. Delete the invoice first.");
+        }
+
+        $quotation->items()->delete();
+        $quotation->delete();
+
+        AuditService::log('quotation_deleted', null, "Deleted quotation {$qtnNumber}");
+
+        return redirect()->route('admin.quotations.index')->with('success', "Quotation {$qtnNumber} was deleted successfully.");
     }
 }

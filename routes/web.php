@@ -55,12 +55,23 @@ Route::middleware(['auth', 'role:Super Admin|Administrator|Developer'])->prefix(
     Route::get('/projects/create', [ProjectManagementController::class, 'create'])->name('projects.create');
     Route::post('/projects', [ProjectManagementController::class, 'store'])->name('projects.store');
     Route::get('/projects/{project}', [ProjectManagementController::class, 'show'])->name('projects.show');
+    Route::get('/projects/{project}/edit', [ProjectManagementController::class, 'edit'])->name('projects.edit')->middleware('role:Super Admin|Administrator');
+    Route::put('/projects/{project}', [ProjectManagementController::class, 'update'])->name('projects.update')->middleware('role:Super Admin|Administrator');
+    Route::delete('/projects/{project}', [ProjectManagementController::class, 'destroy'])->name('projects.destroy')->middleware('role:Super Admin|Administrator');
     Route::post('/projects/{project}/milestones', [ProjectManagementController::class, 'addMilestone'])->name('projects.milestone');
+    Route::put('/projects/{project}/milestones/{milestone}', [ProjectManagementController::class, 'updateMilestone'])->name('projects.milestones.update');
+    Route::delete('/projects/{project}/milestones/{milestone}', [ProjectManagementController::class, 'destroyMilestone'])->name('projects.milestones.destroy');
     Route::post('/projects/{project}/milestones/{milestone}/status', [ProjectManagementController::class, 'updateMilestoneStatus'])->name('projects.milestones.status');
+    Route::post('/projects/{project}/members', [ProjectManagementController::class, 'addMember'])->name('projects.members.add');
+    Route::delete('/projects/{project}/members/{member}', [ProjectManagementController::class, 'removeMember'])->name('projects.members.remove');
     Route::post('/projects/{project}/requirements', [ProjectManagementController::class, 'storeRequirement'])->name('projects.requirements.store');
     Route::post('/projects/{project}/requirements/{requirement}/convert', [ProjectManagementController::class, 'convertRequirementToMilestone'])->name('projects.requirements.convert');
     Route::put('/projects/{project}/requirements/{requirement}', [ProjectManagementController::class, 'updateRequirement'])->name('projects.requirements.update');
     Route::delete('/projects/{project}/requirements/{requirement}', [ProjectManagementController::class, 'destroyRequirement'])->name('projects.requirements.destroy');
+    Route::post('/projects/{project}/documents', [ProjectManagementController::class, 'uploadDocument'])->name('projects.documents.upload');
+    Route::get('/projects/{project}/documents/{document}/download', [ProjectManagementController::class, 'downloadDocument'])->name('projects.documents.download');
+    Route::delete('/projects/{project}/documents/{document}', [ProjectManagementController::class, 'destroyDocument'])->name('projects.documents.destroy');
+    Route::get('/projects/{project}/summary-pdf', [ProjectManagementController::class, 'downloadSummaryPdf'])->name('projects.summary.pdf');
     Route::post('/projects/{project}/status', [ProjectManagementController::class, 'updateStatus'])->name('projects.status');
 
     // Support Tickets Management
@@ -76,6 +87,7 @@ Route::middleware(['auth', 'role:Super Admin|Administrator|Developer'])->prefix(
     Route::post('/quotations', [QuotationController::class, 'store'])->name('quotations.store')->middleware('role:Super Admin|Administrator');
     Route::get('/quotations/{quotation}', [QuotationController::class, 'show'])->name('quotations.show');
     Route::post('/quotations/{quotation}/convert', [QuotationController::class, 'convert'])->name('quotations.convert')->middleware('role:Super Admin|Administrator');
+    Route::delete('/quotations/{quotation}', [QuotationController::class, 'destroy'])->name('quotations.destroy')->middleware('role:Super Admin|Administrator');
     Route::get('/quotations/{quotation}/pdf', [QuotationController::class, 'downloadPdf'])->name('quotations.pdf');
 
     // Invoices & Billing Directory
@@ -90,8 +102,9 @@ Route::middleware(['auth', 'role:Super Admin|Administrator|Developer'])->prefix(
 
     // Administrative-restricted operations (Super Admin & Administrator)
     Route::middleware('role:Super Admin|Administrator')->group(function () {
-        // Payment recording
+        // Payment recording & Invoice Deletion
         Route::post('/invoices/{invoice}/payment', [InvoiceController::class, 'recordPayment'])->name('invoices.payment');
+        Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
 
         // CMS Management
         Route::get('/cms/homepage', [CmsController::class, 'homepage'])->name('cms.homepage');
@@ -136,6 +149,7 @@ Route::middleware(['auth', 'role:Customer'])->prefix('portal')->name('client.')-
     Route::post('/projects/{project}/requirements', [ClientPortalController::class, 'storeRequirement'])->name('projects.requirements.store');
     Route::post('/projects/{project}/milestones/{milestone}/approve', [ClientPortalController::class, 'approveMilestone'])->name('projects.milestones.approve');
     Route::post('/projects/{project}/milestones/{milestone}/revision', [ClientPortalController::class, 'requestMilestoneRevision'])->name('projects.milestones.revision');
+    Route::get('/projects/{project}/documents/{document}/download', [ClientPortalController::class, 'downloadDocument'])->name('projects.documents.download');
 
     // Quotations
     Route::get('/quotations', [ClientPortalController::class, 'quotations'])->name('quotations.index');
@@ -145,4 +159,7 @@ Route::middleware(['auth', 'role:Customer'])->prefix('portal')->name('client.')-
     // Invoices
     Route::get('/invoices', [ClientPortalController::class, 'invoices'])->name('invoices.index');
     Route::get('/invoices/{invoice}', [ClientPortalController::class, 'showInvoice'])->name('invoices.show');
+
+    // Security & Password Management
+    Route::put('/profile/password', [ClientPortalController::class, 'updatePassword'])->name('profile.password.update');
 });

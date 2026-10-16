@@ -118,9 +118,23 @@
                             </span>
                         </td>
                         <td class="text-end">
-                            <a href="{{ route('admin.projects.show', $p) }}" class="btn btn-sm btn-outline-primary py-1 px-3">
-                                View <i class="fas fa-arrow-right ms-1"></i>
-                            </a>
+                            <div class="d-inline-flex gap-1">
+                                <a href="{{ route('admin.projects.show', $p) }}" class="btn btn-sm btn-light border py-1 px-2" title="View Project">
+                                    <i class="fas fa-eye text-muted"></i>
+                                </a>
+                                @hasanyrole('Super Admin|Administrator')
+                                    <a href="{{ route('admin.projects.edit', $p) }}" class="btn btn-sm btn-light border py-1 px-2 text-primary" title="Edit Specifications">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    <form method="POST" action="{{ route('admin.projects.destroy', $p) }}" class="d-inline" onsubmit="return confirm('Delete project {{ $p->project_number }} ({{ $p->name }})? This action cannot be undone.')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-light border py-1 px-2 text-danger" title="Delete Project">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                @endhasanyrole
+                            </div>
                         </td>
                     </tr>
                 @empty

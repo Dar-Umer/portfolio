@@ -14,6 +14,17 @@
         </a>
     </div>
 
+    @if(isset($currentProject) && $currentProject)
+        <div class="alert alert-info py-2 px-3 small d-flex justify-content-between align-items-center mb-3">
+            <span>
+                <i class="fas fa-filter me-1"></i> Showing tickets filtered for project: <strong>{{ $currentProject->name }}</strong> ({{ $currentProject->code }})
+            </span>
+            <a href="{{ route('client.tickets.index') }}" class="btn btn-xs btn-outline-info text-decoration-none">
+                <i class="fas fa-times me-1"></i> Clear Filter
+            </a>
+        </div>
+    @endif
+
     <div class="card card-custom bg-white">
         <div class="table-responsive">
             <table class="table align-middle mb-0 small">

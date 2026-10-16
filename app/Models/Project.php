@@ -79,6 +79,16 @@ class Project extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    public function quotations(): HasMany
+    {
+        return $this->hasMany(Quotation::class);
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(ProjectDocument::class)->latest();
+    }
+
     public function recalculateProgress(): int
     {
         $milestones = $this->milestones()->get();

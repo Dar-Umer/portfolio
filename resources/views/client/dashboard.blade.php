@@ -10,7 +10,10 @@
             <h3 class="fw-bold mb-1">Welcome back, {{ auth()->user()->name }}</h3>
             <p class="text-muted small mb-0">{{ $client->company_name ?? 'Client Account' }} &bull; {{ $client->client_number }}</p>
         </div>
-        <div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                <i class="fas fa-key me-1"></i> Change Password
+            </button>
             <a href="{{ route('client.tickets.create') }}" class="btn btn-primary btn-sm">
                 <i class="fas fa-plus me-1"></i> Raise Support Ticket
             </a>
@@ -118,6 +121,56 @@
                     @endforelse
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Change Password -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form method="POST" action="{{ route('client.profile.password.update') }}">
+                @csrf
+                @method('PUT')
+                <div class="modal-header border-bottom bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-lock text-primary me-1"></i> Change Portal Password
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 small">
+                    @if ($errors->any())
+                        <div class="alert alert-danger py-2 small mb-3">
+                            <ul class="mb-0 ps-3">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Current Password <span class="text-danger">*</span></label>
+                        <input type="password" name="current_password" class="form-control" placeholder="••••••••" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">New Password <span class="text-danger">*</span></label>
+                        <input type="password" name="password" class="form-control" placeholder="Minimum 8 characters" required>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Confirm New Password <span class="text-danger">*</span></label>
+                        <input type="password" name="password_confirmation" class="form-control" placeholder="Repeat new password" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-top bg-light py-2">
+                    <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-3">
+                        <i class="fas fa-save me-1"></i> Update Password
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

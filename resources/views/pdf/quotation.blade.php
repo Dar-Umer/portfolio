@@ -22,12 +22,28 @@
 </head>
 <body>
     <div class="quote-box">
+        @php
+            $siteName = \App\Models\Setting::get('site_name', config('app.name', 'The Umer Store'));
+            $siteTagline = \App\Models\Setting::get('site_tagline', 'Software Systems & Enterprise Architectures');
+            $sellerGstin = \App\Models\Setting::get('seller_gstin', '09ABCDE1234F1Z5');
+            $sellerState = \App\Models\Setting::get('seller_state', 'Jammu and Kashmir');
+            $sellerAddress = \App\Models\Setting::get('business_address', 'Srinagar, Jammu & Kashmir');
+            $contactEmail = \App\Models\Setting::get('contact_email', 'contact@theumer.store');
+            $contactPhone = \App\Models\Setting::get('contact_phone', '+91 9622756099');
+        @endphp
         <table class="header" width="100%">
             <tr>
                 <td>
-                    <div class="company-title">The Umer Store</div>
-                    <div>Software Systems & Enterprise Architectures</div>
-                    <div>GSTIN: 09ABCDE1234F1Z5 &bull; State: Uttar Pradesh</div>
+                    <div class="company-title">{{ $siteName }}</div>
+                    <div>{{ $siteTagline }}</div>
+                    @if($sellerAddress)
+                        <div>{{ $sellerAddress }}</div>
+                    @endif
+                    <div>
+                        @if($sellerGstin) GSTIN: {{ $sellerGstin }} &bull; @endif
+                        State: {{ $sellerState }}
+                        @if($contactPhone) &bull; Tel: {{ $contactPhone }} @endif
+                    </div>
                 </td>
                 <td align="right">
                     <div class="doc-title">PROPOSAL & QUOTATION</div>
@@ -108,7 +124,7 @@
         @endif
 
         <div class="footer">
-            Confidential proposal prepared by The Umer Store. Valid until {{ $quotation->expiry_date->format('d M Y') }}.
+            Confidential proposal prepared by {{ $siteName }}. Valid until {{ $quotation->expiry_date->format('d M Y') }}.
         </div>
     </div>
 </body>

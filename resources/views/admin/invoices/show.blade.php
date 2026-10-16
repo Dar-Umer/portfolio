@@ -38,10 +38,53 @@
         @else
             <span class="badge badge-soft-success px-3 py-2"><i class="fas fa-check-circle me-1"></i> Balance Fully Settled</span>
         @endif
+
+        @hasanyrole('Super Admin|Administrator')
+            <form method="POST" action="{{ route('admin.invoices.destroy', $invoice) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete invoice {{ $invoice->invoice_number }}? This action cannot be undone.')">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-trash me-1"></i> Delete Invoice
+                </button>
+            </form>
+        @endhasanyrole
     </div>
 </div>
 
 <div class="card border-0 shadow-sm p-4 bg-white mb-4">
+    @php
+        $siteName = \App\Models\Setting::get('site_name', config('app.name', 'The Umer Store'));
+        $siteTagline = \App\Models\Setting::get('site_tagline', 'Software Systems & Enterprise Architectures');
+        $sellerGstin = \App\Models\Setting::get('seller_gstin', '09ABCDE1234F1Z5');
+        $sellerAddress = \App\Models\Setting::get('business_address', 'Srinagar, Jammu & Kashmir');
+        $sellerState = \App\Models\Setting::get('seller_state', 'Jammu and Kashmir');
+        $contactPhone = \App\Models\Setting::get('contact_phone', '+91 9622756099');
+        $contactEmail = \App\Models\Setting::get('contact_email', 'contact@theumer.store');
+        $currSym = $invoice->currency === 'USD' ? '$' : '₹';
+    @endphp
+
+    <!-- Issuer Header -->
+    <div class="row g-4 mb-4 pb-4 border-bottom">
+        <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase mb-1" style="font-size: 11px;">Issued By</div>
+            <h5 class="fw-bold text-dark mb-1">{{ $siteName }}</h5>
+            <div class="small text-secondary">
+                {{ $siteTagline }}<br>
+                {{ $sellerAddress }} &bull; State: {{ $sellerState }}<br>
+                @if($sellerGstin) GSTIN: <span class="font-monospace fw-semibold text-dark">{{ $sellerGstin }}</span> &bull; @endif
+                Email: {{ $contactEmail }}
+            </div>
+        </div>
+        <div class="col-md-6 text-md-end">
+            <div class="text-muted small fw-bold text-uppercase mb-1" style="font-size: 11px;">Tax Invoice Summary</div>
+            <div class="fw-bold text-dark fs-5 font-monospace mb-1">{{ $invoice->invoice_number }}</div>
+            <div class="small text-secondary">
+                Date: <span class="fw-semibold text-dark">{{ $invoice->issue_date->format('d M Y') }}</span> &bull; Due: <span class="fw-semibold text-dark">{{ $invoice->due_date->format('d M Y') }}</span><br>
+                Currency: <span class="fw-bold text-dark font-monospace">{{ $invoice->currency }}</span> ({{ $currSym }})
+            </div>
+        </div>
+    </div>
+
     <div class="row g-4 mb-4 pb-4 border-bottom">
         <div class="col-md-6">
             <div class="text-muted small fw-bold text-uppercase mb-2" style="font-size: 11px;">Billed Organization</div>
@@ -59,7 +102,7 @@
                 @if($invoice->quotation)
                     Originated from Proposal: <a href="{{ route('admin.quotations.show', $invoice->quotation) }}" class="fw-semibold text-primary text-decoration-none font-monospace">{{ $invoice->quotation->quotation_number }}</a><br>
                 @endif
-                Billing Currency: <span class="fw-bold text-dark font-monospace">{{ $invoice->currency }}</span>
+                Payment Status: <span class="fw-bold {{ $invoice->status === 'Paid' ? 'text-success' : 'text-primary' }}">{{ $invoice->status }}</span>
             </div>
         </div>
     </div>
@@ -84,8 +127,8 @@
                             <div class="fw-semibold text-dark">{{ $item->description }}</div>
                         </td>
                         <td class="text-center font-monospace">{{ number_format($item->quantity, 2) }}</td>
-                        <td class="text-end font-monospace">₹{{ number_format($item->unit_price, 2) }}</td>
-                        <td class="text-end fw-bold text-dark font-monospace">₹{{ number_format($item->total, 2) }}</td>
+                        <td class="text-end font-monospace">{{ $currSym }}{{ number_format($item->unit_price, 2) }}</td>
+                        <td class="text-end fw-bold text-dark font-monospace">{{ $currSym }}{{ number_format($item->total, 2) }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -98,40 +141,40 @@
             <div class="p-3 bg-light rounded-3 border">
                 <div class="d-flex justify-content-between mb-2 small">
                     <span class="text-muted">Services Subtotal:</span>
-                    <span class="fw-semibold text-dark font-monospace">₹{{ number_format($invoice->subtotal, 2) }}</span>
+                    <span class="fw-semibold text-dark font-monospace">{{ $currSym }}{{ number_format($invoice->subtotal, 2) }}</span>
                 </div>
                 @if($invoice->discount_amount > 0)
                     <div class="d-flex justify-content-between mb-2 small text-danger">
                         <span>Discount:</span>
-                        <span class="font-monospace">-₹{{ number_format($invoice->discount_amount, 2) }}</span>
+                        <span class="font-monospace">-{{ $currSym }}{{ number_format($invoice->discount_amount, 2) }}</span>
                     </div>
                 @endif
                 @if($invoice->cgst_amount > 0)
                     <div class="d-flex justify-content-between mb-1 small text-muted">
                         <span>CGST:</span>
-                        <span class="font-monospace">₹{{ number_format($invoice->cgst_amount, 2) }}</span>
+                        <span class="font-monospace">{{ $currSym }}{{ number_format($invoice->cgst_amount, 2) }}</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2 small text-muted">
                         <span>SGST:</span>
-                        <span class="font-monospace">₹{{ number_format($invoice->sgst_amount, 2) }}</span>
+                        <span class="font-monospace">{{ $currSym }}{{ number_format($invoice->sgst_amount, 2) }}</span>
                     </div>
                 @elseif($invoice->igst_amount > 0)
                     <div class="d-flex justify-content-between mb-2 small text-muted">
                         <span>IGST:</span>
-                        <span class="font-monospace">₹{{ number_format($invoice->igst_amount, 2) }}</span>
+                        <span class="font-monospace">{{ $currSym }}{{ number_format($invoice->igst_amount, 2) }}</span>
                     </div>
                 @endif
                 <div class="d-flex justify-content-between pt-2 border-top fw-bold fs-6">
                     <span class="text-dark">Grand Invoice Total:</span>
-                    <span class="text-primary font-monospace">₹{{ number_format($invoice->grand_total, 2) }}</span>
+                    <span class="text-primary font-monospace">{{ $currSym }}{{ number_format($invoice->grand_total, 2) }}</span>
                 </div>
                 <div class="d-flex justify-content-between mt-2 pt-2 border-top small text-success">
                     <span>Payments Received:</span>
-                    <span class="fw-bold font-monospace">₹{{ number_format($invoice->amount_paid, 2) }}</span>
+                    <span class="fw-bold font-monospace">{{ $currSym }}{{ number_format($invoice->amount_paid, 2) }}</span>
                 </div>
                 <div class="d-flex justify-content-between pt-1 border-top fw-bold text-danger">
                     <span>Remaining Balance Due:</span>
-                    <span class="font-monospace">₹{{ number_format($invoice->balance_due, 2) }}</span>
+                    <span class="font-monospace">{{ $currSym }}{{ number_format($invoice->balance_due, 2) }}</span>
                 </div>
             </div>
         </div>

@@ -48,11 +48,19 @@ class ClientPortalController extends Controller
         return view('client.dashboard', compact('client', 'metrics', 'projects', 'recentTickets', 'invoices'));
     }
 
-    public function tickets(): View
+    public function tickets(Request $request): View
     {
         $client = $this->getClientProfile();
-        $tickets = $client->tickets()->with(['status', 'project', 'category'])->latest()->paginate(10);
-        return view('client.tickets.index', compact('tickets'));
+        $query = $client->tickets()->with(['status', 'project', 'category']);
+
+        if ($request->filled('project_id')) {
+            $query->where('project_id', $request->project_id);
+        }
+
+        $tickets = $query->latest()->paginate(10)->withQueryString();
+        $currentProject = $request->filled('project_id') ? \App\Models\Project::find($request->project_id) : null;
+
+        return view('client.tickets.index', compact('tickets', 'currentProject'));
     }
 
     public function createTicket(): View
@@ -167,9 +175,28 @@ class ClientPortalController extends Controller
             'requirements' => fn($q) => $q->latest(),
             'timelineEvents' => fn($q) => $q->where('is_client_visible', true)->latest(),
             'tickets.status',
+            'members.user',
+            'invoices',
+            'documents' => fn($q) => $q->where('is_client_visible', true)->latest(),
         ]);
 
         return view('client.projects.show', compact('project'));
+    }
+
+    public function downloadDocument(Project $project, \App\Models\ProjectDocument $document)
+    {
+        $client = $this->getClientProfile();
+
+        if ($project->client_profile_id !== $client->id || $document->project_id !== $project->id || !$document->is_client_visible) {
+            abort(403);
+        }
+
+        $filePath = storage_path('app/public/' . $document->file_path);
+        if (!file_exists($filePath)) {
+            return back()->with('error', 'File not found on server.');
+        }
+
+        return response()->download($filePath, $document->file_name);
     }
 
     public function storeRequirement(Request $request, Project $project): RedirectResponse
@@ -357,5 +384,22 @@ class ClientPortalController extends Controller
 
         $invoice->load(['items', 'allocations.payment']);
         return view('client.invoices.show', compact('invoice'));
+    }
+
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = auth()->user();
+        $user->update([
+            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+        ]);
+
+        AuditService::log('client_password_changed', null, "Customer {$user->name} changed their portal password");
+
+        return back()->with('success', 'Your password has been updated successfully.');
     }
 }

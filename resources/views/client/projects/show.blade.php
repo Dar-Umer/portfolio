@@ -334,6 +334,74 @@
                     </a>
                 </div>
             </div>
+
+            <!-- Assigned Engineering Team (Client Facing) -->
+            @if($project->members->isNotEmpty())
+                <div class="card card-custom p-3 bg-white mb-4">
+                    <h6 class="fw-bold border-bottom pb-2 mb-3">
+                        <i class="fas fa-users text-primary me-1"></i> Dedicated Project Team
+                    </h6>
+                    <div class="d-flex flex-column gap-2">
+                        @foreach($project->members as $member)
+                            <div class="p-2 border rounded bg-light d-flex align-items-center gap-2 small">
+                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 28px; height: 28px; font-size: 11px;">
+                                    {{ strtoupper(substr($member->user->name, 0, 1)) }}
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark">{{ $member->user->name }}</div>
+                                    <div class="text-muted" style="font-size: 11px;">{{ $member->role_in_project }}</div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            <!-- Invoices for this Project -->
+            @if($project->invoices->isNotEmpty())
+                <div class="card card-custom p-3 bg-white mb-4">
+                    <h6 class="fw-bold border-bottom pb-2 mb-3">
+                        <i class="fas fa-file-invoice text-success me-1"></i> Project Invoices
+                    </h6>
+                    <div class="d-flex flex-column gap-2">
+                        @foreach($project->invoices as $inv)
+                            <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center small">
+                                <div>
+                                    <a href="{{ route('client.invoices.show', $inv) }}" class="fw-bold text-dark text-decoration-none font-monospace">
+                                        {{ $inv->invoice_number }}
+                                    </a>
+                                    <div class="text-muted" style="font-size: 11px;">{{ $inv->currency }} {{ number_format($inv->grand_total, 2) }}</div>
+                                </div>
+                                <span class="badge {{ $inv->status === 'Paid' ? 'bg-success' : 'bg-warning text-dark' }}" style="font-size: 10px;">
+                                    {{ $inv->status }}
+                                </span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            <!-- Project Documents & Contracts (Client Facing) -->
+            @if($project->documents->isNotEmpty())
+                <div class="card card-custom p-3 bg-white mb-4">
+                    <h6 class="fw-bold border-bottom pb-2 mb-3">
+                        <i class="fas fa-folder-open text-warning me-1"></i> Documents & Deliverables
+                    </h6>
+                    <div class="d-flex flex-column gap-2">
+                        @foreach($project->documents as $doc)
+                            <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center small">
+                                <div class="text-truncate me-2" style="max-width: 190px;">
+                                    <div class="fw-bold text-dark text-truncate">{{ $doc->title }}</div>
+                                    <div class="text-muted" style="font-size: 10.5px;">{{ $doc->category }} &bull; {{ $doc->formatted_size }}</div>
+                                </div>
+                                <a href="{{ route('client.projects.documents.download', [$project, $doc]) }}" class="btn btn-sm btn-outline-primary py-1 px-2" style="font-size: 11px;">
+                                    <i class="fas fa-download me-1"></i> Get
+                                </a>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 </div>

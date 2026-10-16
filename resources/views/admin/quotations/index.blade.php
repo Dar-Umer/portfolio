@@ -66,6 +66,23 @@
                                 <a href="{{ route('admin.quotations.pdf', $q) }}" class="btn btn-sm btn-light border py-1 px-2" title="Download PDF">
                                     <i class="fas fa-file-pdf text-danger"></i>
                                 </a>
+                                @if(!$q->invoice)
+                                    <form method="POST" action="{{ route('admin.quotations.convert', $q) }}" class="d-inline" onsubmit="return confirm('Convert quotation {{ $q->quotation_number }} into a Tax Invoice?')">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-light border py-1 px-2 text-success" title="Convert to Tax Invoice">
+                                            <i class="fas fa-file-invoice-dollar"></i>
+                                        </button>
+                                    </form>
+                                @endif
+                                @hasanyrole('Super Admin|Administrator')
+                                    <form method="POST" action="{{ route('admin.quotations.destroy', $q) }}" class="d-inline" onsubmit="return confirm('Delete quotation {{ $q->quotation_number }}?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-light border py-1 px-2 text-danger" title="Delete Quotation">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                @endhasanyrole
                             </div>
                         </td>
                     </tr>

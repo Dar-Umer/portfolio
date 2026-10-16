@@ -65,4 +65,29 @@ class InvoiceController extends Controller
 
         return $pdf->download("{$invoice->invoice_number}.pdf");
     }
+
+    public function destroy(Invoice $invoice): RedirectResponse
+    {
+        $invoiceNumber = $invoice->invoice_number;
+
+        // If payments are allocated, disallow or handle cleanly
+        if ($invoice->allocations()->exists()) {
+            return back()->with('error', "Cannot delete {$invoiceNumber} because payments have already been allocated to it. Revert payment allocations first.");
+        }
+
+        $quotation = $invoice->quotation;
+
+        $invoice->items()->delete();
+        $invoice->forceDelete();
+
+        if ($quotation) {
+            $quotation->update([
+                'status' => 'Accepted',
+            ]);
+        }
+
+        AuditService::log('invoice_deleted', null, "Deleted tax invoice {$invoiceNumber}");
+
+        return redirect()->route('admin.invoices.index')->with('success', "Invoice {$invoiceNumber} was deleted successfully.");
+    }
 }
