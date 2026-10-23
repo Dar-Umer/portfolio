@@ -91,6 +91,24 @@
                         </div>
                     </div>
 
+                    <!-- Security & Spam Protection -->
+                    <div class="d-flex align-items-center gap-2 mb-3 text-uppercase text-muted fw-bold" style="font-size: 11px; letter-spacing: 0.05em;">
+                        <i class="fas fa-shield-alt text-danger"></i> Spam Protection & Google reCAPTCHA v2
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Google reCAPTCHA v2 Site Key</label>
+                            <input type="text" name="recaptcha_site_key" class="form-control font-monospace" value="{{ \App\Models\Setting::get('recaptcha_site_key', config('services.recaptcha.site_key')) }}" placeholder="e.g. 6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI">
+                            <span class="text-muted mt-1 d-block" style="font-size: 11px;">Public site key rendered in the contact form checkbox.</span>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Google reCAPTCHA v2 Secret Key</label>
+                            <input type="password" name="recaptcha_secret_key" class="form-control font-monospace" value="{{ \App\Models\Setting::get('recaptcha_secret_key', config('services.recaptcha.secret_key')) }}" placeholder="e.g. 6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe">
+                            <span class="text-muted mt-1 d-block" style="font-size: 11px;">Private secret key used for backend verification with Google API.</span>
+                        </div>
+                    </div>
+
                     <div class="pt-3 border-top mt-4">
                         <button type="submit" class="btn btn-primary px-4 py-2">
                             <i class="fas fa-save me-1"></i> Save Platform Settings

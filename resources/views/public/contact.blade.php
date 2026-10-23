@@ -85,6 +85,13 @@
 
                 <form method="POST" action="{{ route('contact.post') }}">
                     @csrf
+
+                    {{-- Honeypot anti-spam trap: invisible to legitimate users, robots fill it --}}
+                    <div style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;" aria-hidden="true">
+                        <label for="website_url">Do not fill this field</label>
+                        <input type="text" name="website_url" id="website_url" tabindex="-1" autocomplete="off">
+                    </div>
+
                     <div class="row g-3 mb-3">
                         <div class="col-12 col-md-6">
                             <label class="form-label small fw-semibold text-light">Your Full Name <span class="text-danger">*</span></label>
@@ -107,10 +114,25 @@
                         </div>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="form-label small fw-semibold text-light">Project Specifications &amp; Objectives <span class="text-danger">*</span></label>
                         <textarea name="message" class="form-control" rows="5" placeholder="Briefly describe your requirements, key features, target deadline, or technical scope..." required style="background: rgba(4, 6, 13, 0.7); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff;">{{ old('message') }}</textarea>
                     </div>
+
+                    @php
+                        $recaptchaSiteKey = \App\Models\Setting::get('recaptcha_site_key', config('services.recaptcha.site_key'));
+                    @endphp
+
+                    @if(!empty($recaptchaSiteKey))
+                        <div class="mb-4 d-flex flex-column align-items-start">
+                            <div class="g-recaptcha" data-sitekey="{{ $recaptchaSiteKey }}" data-theme="dark"></div>
+                            @error('g-recaptcha-response')
+                                <div class="text-danger small mt-1">
+                                    <i class="fas fa-exclamation-circle me-1"></i> {{ $message }}
+                                </div>
+                            @enderror
+                        </div>
+                    @endif
 
                     <button type="submit" class="btn btn-cyber-primary w-100 py-3 fw-bold shadow-sm">
                         <i class="fas fa-paper-plane me-2"></i> Submit Inquiry Message
@@ -121,3 +143,12 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+@php
+    $recaptchaSiteKey = \App\Models\Setting::get('recaptcha_site_key', config('services.recaptcha.site_key'));
+@endphp
+@if(!empty($recaptchaSiteKey))
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+@endif
+@endpush

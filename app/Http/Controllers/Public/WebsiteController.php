@@ -11,6 +11,8 @@ use App\Models\Setting;
 use App\Models\Testimonial;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class WebsiteController extends Controller
@@ -48,6 +50,46 @@ class WebsiteController extends Controller
 
     public function submitContact(Request $request): RedirectResponse
     {
+        // 1. Honeypot anti-spam check: bots fill hidden inputs
+        if ($request->filled('website_url')) {
+            // Silently return success to mislead spambots
+            return back()->with('success', 'Thank you! Your inquiry has been received. I will get back to you shortly.');
+        }
+
+        // 2. Google reCAPTCHA v2 verification if configured
+        $secretKey = Setting::get('recaptcha_secret_key', config('services.recaptcha.secret_key'));
+        if (!empty($secretKey)) {
+            $recaptchaResponse = $request->input('g-recaptcha-response');
+
+            if (empty($recaptchaResponse)) {
+                throw ValidationException::withMessages([
+                    'g-recaptcha-response' => ['Please check the reCAPTCHA box to confirm you are not a robot.'],
+                ]);
+            }
+
+            try {
+                $response = Http::asForm()->timeout(5)->post('https://www.google.com/recaptcha/api/siteverify', [
+                    'secret' => $secretKey,
+                    'response' => $recaptchaResponse,
+                    'remoteip' => $request->ip(),
+                ]);
+
+                if (!$response->successful() || !$response->json('success')) {
+                    throw ValidationException::withMessages([
+                        'g-recaptcha-response' => ['reCAPTCHA verification failed. Please try again.'],
+                    ]);
+                }
+            } catch (\Illuminate\Validation\ValidationException $ve) {
+                throw $ve;
+            } catch (\Throwable $e) {
+                report($e);
+                // In case of network timeout to Google, keep error clean for user
+                throw ValidationException::withMessages([
+                    'g-recaptcha-response' => ['Could not verify reCAPTCHA with Google servers. Please try again in a moment.'],
+                ]);
+            }
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:150'],

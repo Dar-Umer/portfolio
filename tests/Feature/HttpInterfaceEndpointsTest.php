@@ -73,6 +73,56 @@ class HttpInterfaceEndpointsTest extends TestCase
     }
 
     #[Test]
+    public function contact_form_blocks_honeypot_spambots(): void
+    {
+        $response = $this->post(route('contact.post'), [
+            'name' => 'Bot Spammer',
+            'email' => 'spambot@example.com',
+            'message' => 'Buy cheap links now!',
+            'website_url' => 'http://spam-link.com', // Honeypot trap filled
+        ]);
+
+        $response->assertRedirect();
+        // Should NOT create record in database
+        $this->assertDatabaseMissing('contact_messages', [
+            'email' => 'spambot@example.com',
+        ]);
+    }
+
+    #[Test]
+    public function contact_form_validates_recaptcha_when_configured(): void
+    {
+        \App\Models\Setting::set('recaptcha_site_key', 'test-site-key', 'security');
+        \App\Models\Setting::set('recaptcha_secret_key', 'test-secret-key', 'security');
+
+        // 1. Missing recaptcha response
+        $response = $this->post(route('contact.post'), [
+            'name' => 'Real User',
+            'email' => 'real@example.com',
+            'message' => 'Real inquiry message.',
+        ]);
+        $response->assertSessionHasErrors(['g-recaptcha-response']);
+
+        // 2. Successful verification with mocked Google API
+        \Illuminate\Support\Facades\Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => \Illuminate\Support\Facades\Http::response([
+                'success' => true,
+            ], 200),
+        ]);
+
+        $successResponse = $this->post(route('contact.post'), [
+            'name' => 'Real User',
+            'email' => 'real@example.com',
+            'message' => 'Real inquiry message.',
+            'g-recaptcha-response' => 'valid-mock-token',
+        ]);
+        $successResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('contact_messages', [
+            'email' => 'real@example.com',
+        ]);
+    }
+
+    #[Test]
     public function authenticated_client_can_create_and_view_support_tickets(): void
     {
         $clientUser = User::where('email', 'client@acme.com')->first();

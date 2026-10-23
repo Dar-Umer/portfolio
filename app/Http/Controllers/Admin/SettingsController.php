@@ -27,6 +27,7 @@ class SettingsController extends Controller
                 'ticket_reopen_days' => 'tickets',
                 'business_address', 'seller_gstin', 'seller_state', 'default_currency' => 'business',
                 'project_categories' => 'projects',
+                'recaptcha_site_key', 'recaptcha_secret_key' => 'security',
                 default => 'general',
             };
             Setting::set($key, $value, $group);
